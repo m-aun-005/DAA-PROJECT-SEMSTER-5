@@ -27,13 +27,17 @@ Machine learning and reinforcement learning are strictly avoided; all computer-c
 
 ---
 
-## 🎮 The Five Required GUI Screens
+## 🎮 The Modern Asphalt 8-Inspired GUI Experience
 
-1. **Main Menu Screen:** Mode selector (`Quick Race`, `Championship`, `Track Explorer`, `Algorithm Lab`), circuit configuration, and student team credits.
-2. **Track Explorer / Route Planner:** Visual topological inspector comparing **BFS**, **DFS**, **Dijkstra**, and **A\*** under four multi-objective presets (`Balanced`, `Speed`, `Economy`, `Safety`). Click any vertex on the map to set custom destinations.
-3. **Racing Simulation Screen:** 60 FPS top-down simulation featuring vehicle motion, player controls (Arrow Keys / WASD, Space for Nitro, P/Esc for Pause), live HUD telemetry (Fuel gauge, Nitro dots, Lap timer), and dynamic road event alerts.
-4. **Algorithm Lab / Visualizer:** Step-by-step interactive debugger allowing inspection of open/closed frontiers, priority queue states, and operation counters on live circuit graphs.
-5. **Championship Dashboard:** Podium awards, full finishing standings, and side-by-side comparison of **Merge Sort**, **Quick Sort (3-way)**, **Heap Sort**, and **Top-k Priority Queue** under the unified Section 4.6 multi-tier comparator.
+The user interface features a cinematic arcade-racing visual overhaul inspired by **Asphalt 8**:
+
+1. **Main Menu Screen:** Animated night cityscape skyline, scrolling background, animated racing car, illuminated glow logo, and metallic gradient navigation buttons (`Quick Race`, `Championship`, `Track Explorer`, `Algorithm Lab`, `Standings`).
+2. **Track Selection Screen:** Card-based track carousel displaying handcrafted vector mini-maps for each circuit, difficulty ratings (1–5 stars), track lengths, corner counts, and custom lap selection (1, 2, or 3 laps).
+3. **Vehicle Garage / Car Selection Screen:** Dedicated 360° showcase garage featuring 4 distinct vehicle classes (`Apex Viper`, `Storm GT`, `Shadow X`, `Phantom RS`) with animated performance telemetry meters (Speed, Acceleration, Handling, Nitro Boost), specifications (Weight, Top Speed, Drivetrain), and tier badges.
+4. **Track Explorer / Route Planner:** Visual topological inspector comparing **BFS**, **DFS**, **Dijkstra**, and **A\*** under four multi-objective presets (`Balanced`, `Speed`, `Economy`, `Safety`). Click any vertex on the map to set custom destinations.
+5. **Racing Simulation Screen:** 60 FPS top-down simulation featuring detailed polygon sports car models, tire rims, spoilers, exhaust nitro plumes, Asphalt 8-style arc speedometer, 3-segment neon nitro gauge, live positions indicator, checkpoint hints, and dynamic hazard alerts. Controls: `WASD / Arrows` for steering, `Space` for Nitro, `P / Esc` to Pause.
+6. **Algorithm Lab / Visualizer:** Step-by-step interactive debugger allowing inspection of open/closed frontiers, priority queue states, and operation counters on live circuit graphs.
+7. **Championship Dashboard:** 3D podium awards (Gold, Silver, Bronze), full finishing standings, and side-by-side comparison of **Merge Sort**, **Quick Sort (3-way)**, **Heap Sort**, and **Top-k Priority Queue** under the unified Section 4.6 multi-tier comparator.
 
 ---
 

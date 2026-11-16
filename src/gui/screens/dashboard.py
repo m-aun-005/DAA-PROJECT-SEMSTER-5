@@ -9,7 +9,7 @@ from src.models.leaderboard import RaceResult, ChampionshipEntry
 from src.core.sorting import MergeSort, QuickSort3Way, HeapSortAlgo, TopKHeap
 from src.gui.components.button import Button
 from src.gui.assets.colors import BG_DARK, PANEL_BG, PANEL_BORDER, TEXT_WHITE, TEXT_MUTED, TEXT_ACCENT
-from src.gui.assets.fonts import get_font
+from src.gui.assets.fonts import get_font, get_ui_font
 
 
 class DashboardScreen:
@@ -116,7 +116,9 @@ class DashboardScreen:
             btn.handle_event(event)
 
     def update(self, dt: float) -> None:
-        pass
+        for btn in self.buttons:
+            if hasattr(btn, "update"):
+                btn.update(dt)
 
     def draw(self, surface: pygame.Surface) -> None:
         surface.fill(BG_DARK)
