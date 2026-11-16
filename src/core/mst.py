@@ -93,6 +93,15 @@ class KruskalMST:
             "stats": self.get_stats()
         }
 
+    def get_stats(self) -> Dict[str, object]:
+        return {
+            "mst_edge_count": len(self.mst_edges),
+            "total_weight": round(self.total_weight, 2),
+            "edges_examined": self.edges_examined,
+            "comparisons": self.comparisons,
+            "execution_time_us": round(self.execution_time_us, 2)
+        }
+
     def step_generator(self) -> Generator[Dict[str, object], None, None]:
         """Step-by-step generator for visualizer."""
         unique_edges = list(self.graph.edges.values())
@@ -179,6 +188,15 @@ class PrimMST:
             "edge_count": len(self.mst_edges),
             "is_connected_tree": len(self.mst_edges) == max(0, len(self.graph.vertices) - 1),
             "stats": self.get_stats()
+        }
+
+    def get_stats(self) -> Dict[str, object]:
+        return {
+            "mst_edge_count": len(self.mst_edges),
+            "total_weight": round(self.total_weight, 2),
+            "edges_examined": self.edges_examined,
+            "comparisons": self.comparisons,
+            "execution_time_us": round(self.execution_time_us, 2)
         }
 
     def get_stats(self) -> Dict[str, object]:
