@@ -1,4 +1,4 @@
-# Smart Racing Championship: The Algorithmic Racing Challenge 🏎️💨
+# Legendary Motors Championship: The Algorithmic Racing Challenge 🏎️💨
 
 > **Course:** Design and Analysis of Algorithms (CS-2002) — Semester 5  
 > **Institution:** FAST National University of Computer & Emerging Sciences (FAST-NUCES)  
@@ -19,7 +19,7 @@
 
 ## 📌 Project Overview
 
-**Smart Racing Championship** is a 2D top-down simulation game and algorithmic laboratory situated on a dynamically evolving road network. Circuits feature intersections, mandatory ordered checkpoints, alternative routes, high-risk shortcuts, refuelling stations, nitro pickups, and road obstacles.
+**Legendary Motors Championship** is a top-down arcade racing simulator and algorithmic laboratory inspired by vintage endurance championships (Le Mans, Trans-Am, GT World Series). The game features legendary 1960s–1970s muscle and sports cars—including the **Ford GT40 Mk.II**, **Shelby Mustang GT500**, **Dodge Charger R/T**, **Ferrari 250 GTO**, **Pontiac GTO**, **Chevy Camaro Z28**, **AC Cobra 427**, and **Jaguar E-Type**.
 
 The project demonstrates the practical application, empirical profiling, and integration of **twelve foundational computer science algorithms**. In strict accordance with the project specifications, the system maintains a **"Single Source of Truth"** architecture: every mandatory algorithm has an active functional role in gameplay and is directly observable within the interactive visualizer.
 
@@ -27,17 +27,33 @@ Machine learning and reinforcement learning are strictly avoided; all computer-c
 
 ---
 
-## 🎮 The Modern Asphalt 8-Inspired GUI Experience
+## 🎮 Game Modes & Comprehensive Screen Suite
 
-The user interface features a cinematic arcade-racing visual overhaul inspired by **Asphalt 8**:
+The application delivers a commercial-grade pseudo-3D retro arcade racing experience:
 
-1. **Main Menu Screen:** Animated night cityscape skyline, scrolling background, animated racing car, illuminated glow logo, and metallic gradient navigation buttons (`Quick Race`, `Championship`, `Track Explorer`, `Algorithm Lab`, `Standings`).
-2. **Track Selection Screen:** Card-based track carousel displaying handcrafted vector mini-maps for each circuit, difficulty ratings (1–5 stars), track lengths, corner counts, and custom lap selection (1, 2, or 3 laps).
-3. **Vehicle Garage / Car Selection Screen:** Dedicated 360° showcase garage featuring 4 distinct vehicle classes (`Apex Viper`, `Storm GT`, `Shadow X`, `Phantom RS`) with animated performance telemetry meters (Speed, Acceleration, Handling, Nitro Boost), specifications (Weight, Top Speed, Drivetrain), and tier badges.
-4. **Track Explorer / Route Planner:** Visual topological inspector comparing **BFS**, **DFS**, **Dijkstra**, and **A\*** under four multi-objective presets (`Balanced`, `Speed`, `Economy`, `Safety`). Click any vertex on the map to set custom destinations.
-5. **Racing Simulation Screen:** 60 FPS top-down simulation featuring detailed polygon sports car models, tire rims, spoilers, exhaust nitro plumes, Asphalt 8-style arc speedometer, 3-segment neon nitro gauge, live positions indicator, checkpoint hints, and dynamic hazard alerts. Controls: `WASD / Arrows` for steering, `Space` for Nitro, `P / Esc` to Pause.
-6. **Algorithm Lab / Visualizer:** Step-by-step interactive debugger allowing inspection of open/closed frontiers, priority queue states, and operation counters on live circuit graphs.
-7. **Championship Dashboard:** 3D podium awards (Gold, Silver, Bronze), full finishing standings, and side-by-side comparison of **Merge Sort**, **Quick Sort (3-way)**, **Heap Sort**, and **Top-k Priority Queue** under the unified Section 4.6 multi-tier comparator.
+1. **Cinematic Splash / Start Screen (`splash_screen.py`):** Real vintage racing photography background from historic endurance racing archives, cinematic letterboxing, pulsing "PRESS ANY KEY" prompt, and animated silhouettes.
+2. **Main Navigation Hub (`main_menu.py`):** Interactive menu featuring high-contrast neon styling, interactive vehicle showcase carousel, and one-click navigation across all game modes:
+   - `🏆 CHAMPIONSHIP`
+   - `🏁 QUICK RACE`
+   - `🗺 RACE EXPLORER`
+   - `🔧 GARAGE`
+   - `📊 SCOREBOARD`
+   - `📖 INSTRUCTIONS`
+   - `✕ EXIT`
+3. **Championship Seasons Selector (`championship.py`):** Structured multi-season campaign mode with 5 distinct seasons:
+   - **Season 1: Road to Glory (1962)** — 4 rounds, Open class, unlocks Jaguar E-Type.
+   - **Season 2: Italian Fire (1964)** — 5 rounds, GT class, unlocks Ferrari 250 GTO.
+   - **Season 3: American Muscle (1967)** — 5 rounds, Muscle class, unlocks Shelby GT500.
+   - **Season 4: 24 Hours Legend (1966)** — 6 rounds, GT endurance, unlocks Ford GT40 Mk.II.
+   - **Season 5: Grand Finale (1969)** — 7 rounds on mixed circuits to claim the overall crown.
+4. **Classic Car Garage (`garage.py` & `car_select.py`):** 3D-styled top-down showcase of 8 legendary cars with detailed vector styling (chassis reflections, drop shadows, wheel spoke geometry, fender flares, and racing liveries), accompanied by animated performance telemetry (Speed, Acceleration, Handling, Nitro Boost) and mechanical specifications (Engine displacement, Horsepower, Curb weight, Drivetrain).
+5. **Track Selection Screen (`circuit_select.py`):** Card-based track carousel displaying vector mini-maps, corner counts, length, difficulty stars (1–5), and custom lap configuration (1, 2, or 3 laps).
+6. **Track Explorer / Route Planner (`track_explorer.py`):** Visual topological inspector comparing **BFS**, **DFS**, **Dijkstra**, and **A\*** under four multi-objective presets (`Balanced`, `Speed`, `Economy`, `Safety`). Click any vertex on the map to set custom destinations.
+7. **Racing Simulation Screen (`racing_screen.py`):** 60 FPS top-down simulation featuring pseudo-3D shaded muscle cars, tire rims, rear spoilers, exhaust nitro plumes, radial arc speedometer, 3-segment neon nitro gauge, live positions indicator, checkpoint hints, and dynamic hazard alerts. Controls: `WASD / Arrows` for steering, `Space` for Nitro, `P / Esc` to Pause.
+8. **Global Scoreboard (`scoreboard.py`):** Persistent season leaderboard with multi-tiered podium (1st Gold, 2nd Silver, 3rd Bronze), tracking all-time driver points, race victories, total completed races, and fastest lap records stored on disk (`scoreboard.json`).
+9. **How to Play & Instructions (`instructions.py`):** Comprehensive tabbed guide covering vehicle controls, racing mechanics, championship structure, academic algorithm mappings, and driving tips.
+10. **Algorithm Lab / Visualizer (`algorithm_lab.py`):** Step-by-step interactive debugger allowing inspection of open/closed frontiers, priority queue states, and operation counters on live circuit graphs.
+11. **Championship Dashboard (`dashboard.py`):** 3D podium awards, finishing standings, and side-by-side comparison of **Merge Sort**, **Quick Sort (3-way)**, **Heap Sort**, and **Top-k Priority Queue** under the unified Section 4.6 multi-tier comparator.
 
 ---
 

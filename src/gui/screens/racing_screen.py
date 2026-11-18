@@ -48,12 +48,18 @@ class RacingScreen:
         self.renderer    = GraphRenderer(pygame.display.get_surface(), self.circuit.graph)
         self.hud         = HUD(pygame.display.get_surface())
 
-        # Apply selected car color to player vehicle
+        # Apply selected car to player vehicle and opponents
         from src.gui.components.car_renderer import CAR_DESIGNS
-        from src.gui.assets.colors import CAR_PLAYER, CAR_AI_1, CAR_AI_2, CAR_AI_3
-        car_colors = [CAR_PLAYER, CAR_AI_1, CAR_AI_2, CAR_AI_3]
         if self.engine.vehicles:
-            self.engine.vehicles[0].color = car_colors[self.car_idx % 4]
+            # Human player
+            p_des = CAR_DESIGNS[self.car_idx % len(CAR_DESIGNS)]
+            self.engine.vehicles[0].color = p_des["body"]
+            self.engine.vehicles[0].name = p_des["name"]
+            # AI opponents pick distinct classic cars
+            for i, veh in enumerate(self.engine.vehicles[1:], 1):
+                opp_ci = (self.car_idx + i * 2) % len(CAR_DESIGNS)
+                veh.color = CAR_DESIGNS[opp_ci]["body"]
+                veh.name = CAR_DESIGNS[opp_ci]["name"]
 
         self.engine.start_race()
         self.is_paused    = False
@@ -173,10 +179,15 @@ class RacingScreen:
             px, py = int(pos[0]), int(pos[1])
             angle  = self._get_vehicle_angle(veh)
 
-            # Determine car_index from color
-            from src.gui.assets.colors import CAR_PLAYER, CAR_AI_1, CAR_AI_2, CAR_AI_3
-            color_map = {CAR_PLAYER: 0, CAR_AI_1: 1, CAR_AI_2: 2, CAR_AI_3: 3}
-            ci = color_map.get(tuple(veh.color) if hasattr(veh.color, '__iter__') else veh.color, 0)
+            # Determine car_index from car list or index
+            from src.gui.components.car_renderer import CAR_DESIGNS
+            ci = 0
+            for k, des in enumerate(CAR_DESIGNS):
+                if des["name"] == veh.name or des["body"] == veh.color:
+                    ci = k
+                    break
+            else:
+                ci = (self.car_idx + veh.id) % len(CAR_DESIGNS)
 
             nitro_on = hasattr(veh, "nitroTimer") and veh.nitroTimer > 0
             draw_car_at(surface, px, py, ci, angle=angle, scale=1.0,

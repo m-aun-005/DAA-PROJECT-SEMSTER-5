@@ -135,6 +135,9 @@ class CircuitSelectScreen:
     def set_context(self, context: Dict) -> None:
         self.selected_idx  = context.get("circuit_idx", 0)
         self.selected_laps = context.get("laps", 2)
+        self.car_idx       = context.get("car_idx", None)
+        self.championship  = context.get("championship", False)
+        self.season        = context.get("season", None)
 
     def _set_laps(self, n: int) -> None:
         self.selected_laps = n
@@ -142,10 +145,17 @@ class CircuitSelectScreen:
             btn.is_active = (i == n - 1)
 
     def _go_race(self) -> None:
-        self.switch_screen("car_select", {
-            "circuit_idx": self.selected_idx,
-            "laps":        self.selected_laps,
-        })
+        if getattr(self, "car_idx", None) is not None:
+            self.switch_screen("racing", {
+                "circuit_idx": self.selected_idx,
+                "laps":        self.selected_laps,
+                "car_idx":     self.car_idx,
+            })
+        else:
+            self.switch_screen("car_select", {
+                "circuit_idx": self.selected_idx,
+                "laps":        self.selected_laps,
+            })
 
     def handle_event(self, event: pygame.event.Event) -> None:
         if event.type == pygame.MOUSEMOTION:

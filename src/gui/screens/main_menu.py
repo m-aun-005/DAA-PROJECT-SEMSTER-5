@@ -1,250 +1,263 @@
-"""src/gui/screens/main_menu.py — Asphalt 8-style Main Menu Screen.
+"""src/gui/screens/main_menu.py — Legendary Motors Championship Main Menu.
 
-Cinematic dark skyline background, animated racing car, logo with glow,
-and vertical stack of metal-gradient menu buttons.
+Sections: Championship, Quick Race, Race Explorer, Garage, Instructions, Scoreboard, Exit.
 """
 
-from typing import Callable, Dict, List, Tuple
+from typing import Callable, Dict, List
 import math
 import random
 import pygame
-from src.gui.components.button import Button
+from src.gui.components.car_renderer import draw_car_at, CAR_DESIGNS
 from src.gui.assets.colors import BG_DARK, TEXT_WHITE, TEXT_ACCENT, TEXT_GOLD, TEXT_MUTED, PANEL_BG, PANEL_BORDER
 from src.gui.assets.fonts import get_font, get_ui_font
-from src.gui.components.car_renderer import draw_car_at
+import os
 
+_ASSETS_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "assets", "images"))
 
-# ─── Building silhouette data for skyline ────────────────────────────────────
-_BUILDINGS = [
-    # (x, y_top, width, height) in 1280x720 space
-    (0,   460, 60,  260), (60,  440, 80,  280), (140, 400, 55,  320),
-    (195, 460, 95,  260), (290, 380, 65,  340), (355, 430, 50,  290),
-    (405, 350, 85,  370), (490, 420, 60,  300), (550, 380, 75,  340),
-    (625, 400, 55,  320), (680, 440, 90,  280), (770, 360, 70,  360),
-    (840, 410, 60,  310), (900, 460, 85,  260), (985, 380, 65,  340),
-    (1050,430, 75,  290), (1125,400, 80,  320), (1205,460, 75,  260),
+MENU_ITEMS = [
+    # (label, screen, context, accent_color, icon)
+    ("CHAMPIONSHIP",    "championship",   {},                               (255, 160,   0), "🏆"),
+    ("QUICK RACE",      "circuit_select", {"mode": "quick"},                (0,  200, 255), "🏁"),
+    ("RACE EXPLORER",   "track_explorer", {"circuit_idx": 0},               (0,  220, 100), "🗺"),
+    ("GARAGE",          "garage",         {},                               (200,  60, 255), "🔧"),
+    ("SCOREBOARD",      "scoreboard",     {},                               (255, 200,   0), "📊"),
+    ("INSTRUCTIONS",    "instructions",   {},                               (100, 180, 255), "📖"),
+    ("EXIT",            "EXIT",           {},                               (255,  60,  60), "✕"),
 ]
-
-# Windows lit in buildings
-random.seed(42)
-_WINDOWS: List[Tuple[int,int,int,int]] = []
-for bx, by, bw, bh in _BUILDINGS:
-    for wx in range(bx+6, bx+bw-6, 11):
-        for wy in range(by+8, by+bh-10, 14):
-            if random.random() > 0.4:
-                _WINDOWS.append((wx, wy, 6, 8))
 
 
 class MainMenuScreen:
-    """Screen 1: Asphalt 8-style cinematic main menu."""
-
-    MENU_ITEMS = [
-        ("QUICK RACE",         "racing",        {"circuit_idx": 0, "laps": 2}, (0, 195, 255)),
-        ("CHAMPIONSHIP",       "circuit_select", {},                           (255, 160,  0)),
-        ("TRACK EXPLORER",     "track_explorer",  {"circuit_idx": 0},          (0, 220, 100)),
-        ("ALGORITHM LAB",      "algorithm_lab",   {"circuit_idx": 0},          (200, 60,  255)),
-        ("STANDINGS",          "dashboard",       {},                           (255,  80,  80)),
-    ]
+    """Legendary Motors Championship — Cinematic main menu."""
 
     def __init__(self, switch_screen: Callable[[str, Dict], None]):
         self.switch_screen = switch_screen
         self.time          = 0.0
+        self._bg: pygame.Surface | None = None
 
-        # Animated car X position (scrolls left-to-right across the bottom)
-        self._car_x = -100.0
-        self._car_y = 630.0
-        self._car_speed = 180.0   # px per second
-        self._car_idx   = 0
+        # Animated showcase car
+        self._car_x    = 1500.0
+        self._car_y    = 560.0
+        self._car_idx  = 0
+        self._car_dir  = -1   # going left
+        self._showcasing = True
+        self._showcase_x = 920.0
+        self._showcase_alpha = 0.0
 
-        # Build buttons
-        btn_x, btn_y0, btn_w, btn_h, btn_gap = 60, 190, 320, 52, 14
-        self.buttons: List[Button] = []
-        for i, (label, screen, ctx, accent) in enumerate(self.MENU_ITEMS):
-            y = btn_y0 + i * (btn_h + btn_gap)
-            self.buttons.append(
-                Button((btn_x, y, btn_w, btn_h), label,
-                       callback=lambda s=screen, c=ctx: self.switch_screen(s, c),
-                       font_size=17, bold=True, accent_color=accent)
-            )
+        random.seed(12)
+        self._stars = [(random.randint(0,1280), random.randint(0,420),
+                        random.random()*1.4+0.4) for _ in range(60)]
 
-        # Stars background
-        random.seed(7)
-        self._stars = [(random.randint(0,1280), random.randint(0,440),
-                        random.random()*1.5+0.5) for _ in range(80)]
-
-        # Pre-rendered background (static)
-        self._bg_surf: pygame.Surface | None = None
-
-    # ── Event / Update / Draw ─────────────────────────────────────────────────
+        # Menu buttons — stored as rects + labels; drawn manually for custom look
+        self._hovered = -1
+        self._btn_rects: List[pygame.Rect] = []
+        btn_x, btn_y0, btn_w, btn_h, gap = 48, 148, 290, 54, 10
+        for i in range(len(MENU_ITEMS)):
+            self._btn_rects.append(pygame.Rect(btn_x, btn_y0 + i*(btn_h+gap), btn_w, btn_h))
 
     def handle_event(self, event: pygame.event.Event) -> None:
-        for btn in self.buttons:
-            btn.handle_event(event)
+        if event.type == pygame.MOUSEMOTION:
+            self._hovered = -1
+            for i, r in enumerate(self._btn_rects):
+                if r.collidepoint(event.pos):
+                    self._hovered = i
+                    break
+
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            for i, r in enumerate(self._btn_rects):
+                if r.collidepoint(event.pos):
+                    label, screen, ctx, _, _ = MENU_ITEMS[i]
+                    if screen == "EXIT":
+                        import sys; pygame.quit(); sys.exit(0)
+                    self.switch_screen(screen, ctx)
+                    break
 
     def update(self, dt: float) -> None:
         self.time += dt
-        for btn in self.buttons:
-            btn.update(dt)
-
-        # Drive animated car
-        self._car_x += self._car_speed * dt
-        if self._car_x > 1400:
-            self._car_x  = -120.0
-            self._car_idx = (self._car_idx + 1) % 4
+        # Showcase car drives in from right
+        if self._showcasing:
+            target = self._showcase_x
+            if self._car_x > target + 10:
+                self._car_x -= 220 * dt
+            else:
+                self._car_x = target
+                self._showcasing = False
+        # Rotate through cars every 4s
+        if int(self.time) % 5 == 0 and not self._showcasing:
+            pass  # could auto-rotate
+        self._showcase_alpha = min(255.0, self._showcase_alpha + dt * 200)
 
     def draw(self, surface: pygame.Surface) -> None:
         W, H = surface.get_size()
+        self._ensure_bg(surface, W, H)
 
-        # ── Background ─────────────────────────────────────────────────────
-        if self._bg_surf is None:
-            self._bg_surf = self._build_bg(W, H)
-        surface.blit(self._bg_surf, (0, 0))
+        # ── Background ────────────────────────────────────────────────────────
+        surface.blit(self._bg, (0, 0))
 
-        # ── Twinkling stars ─────────────────────────────────────────────────
+        # Stars
         for sx, sy, sr in self._stars:
-            brightness = int(160 + 80 * math.sin(self.time * 2.0 + sx * 0.1))
-            pygame.draw.circle(surface, (brightness, brightness, brightness), (sx, sy), int(sr))
+            b = int(140 + 90 * math.sin(self.time*1.8 + sx*0.08))
+            pygame.draw.circle(surface, (b, b, b), (sx, sy), int(sr))
 
-        # ── Ground / Road strip ─────────────────────────────────────────────
-        pygame.draw.rect(surface, (20, 23, 35), (0, H - 110, W, 110))
-        pygame.draw.line(surface, (0, 200, 255), (0, H - 110), (W, H - 110), 2)
-        # Road markings
-        for rx in range(0, W + 80, 100):
-            ox = int((rx - self.time * 80) % (W + 80)) - 40
-            pygame.draw.rect(surface, (60, 65, 85), (ox, H-70, 60, 8), border_radius=2)
+        # Ground strip
+        pygame.draw.rect(surface, (10, 12, 20), (0, H - 120, W, 120))
+        pygame.draw.line(surface, (0, 180, 255), (0, H - 120), (W, H - 120), 2)
+        # Animated road lines
+        for lx in range(-80, W + 80, 100):
+            ox = int((lx + self.time * 55) % (W + 100)) - 50
+            pygame.draw.rect(surface, (45, 50, 65), (ox, H-80, 55, 7), border_radius=2)
 
-        # ── Animated car ───────────────────────────────────────────────────
-        draw_car_at(surface, self._car_x, self._car_y,
-                    car_index=self._car_idx, angle=0.0, scale=1.6,
-                    nitro_active=(self.time % 3.0 < 0.4), is_human=False, show_shadow=True)
+        # ── Showcase car ──────────────────────────────────────────────────────
+        if self._showcase_alpha > 0:
+            showcase_surf = pygame.Surface((260, 220), pygame.SRCALPHA)
+            # Glow halo behind car
+            glow = pygame.Surface((240, 160), pygame.SRCALPHA)
+            ac = CAR_DESIGNS[self._car_idx]["body"]
+            for gr in range(70, 0, -4):
+                pygame.draw.ellipse(glow, (*ac, max(0, gr-50)), (40-gr//2, 50-gr//4, 160+gr, 80+gr//2))
+            surface.blit(glow, (int(self._car_x)-120, int(self._car_y)-80))
 
-        # ── Logo Panel ─────────────────────────────────────────────────────
+            draw_car_at(surface, int(self._car_x), int(self._car_y),
+                        self._car_idx, angle=math.pi, scale=2.4,
+                        nitro_active=False, is_human=False, show_shadow=True)
+
+        # ── Car name below ────────────────────────────────────────────────────
+        car = CAR_DESIGNS[self._car_idx]
+        name_font = get_ui_font(size=14, bold=True)
+        n_txt = name_font.render(f"{car['year']}  {car['name']}", True, TEXT_GOLD)
+        surface.blit(n_txt, n_txt.get_rect(center=(int(self._showcase_x), int(self._car_y) + 90)))
+
+        # Arrow nav for showcase car
+        self._draw_car_arrows(surface)
+
+        # ── Left panel + buttons ──────────────────────────────────────────────
+        panel_surf = pygame.Surface((340, H - 60), pygame.SRCALPHA)
+        pygame.draw.rect(panel_surf, (5, 7, 16, 230), panel_surf.get_rect(), border_radius=14)
+        pygame.draw.rect(panel_surf, (0, 180, 255, 40), panel_surf.get_rect(), width=1, border_radius=14)
+        surface.blit(panel_surf, (30, 30))
+
         self._draw_logo(surface, W)
 
-        # ── Left side menu panel ────────────────────────────────────────────
-        panel_rect = pygame.Rect(40, 170, 360, 340)
-        panel_surf = pygame.Surface(panel_rect.size, pygame.SRCALPHA)
-        pygame.draw.rect(panel_surf, (8, 10, 20, 210), panel_surf.get_rect(), border_radius=12)
-        pygame.draw.rect(panel_surf, (0, 180, 255, 60), panel_surf.get_rect(), width=1, border_radius=12)
-        surface.blit(panel_surf, panel_rect.topleft)
+        for i, (label, screen, ctx, accent, icon) in enumerate(MENU_ITEMS):
+            self._draw_menu_btn(surface, i, label, icon, accent)
 
-        for btn in self.buttons:
-            btn.draw(surface)
+        # ── Bottom credits ────────────────────────────────────────────────────
+        cr = get_ui_font(size=11).render(
+            "FAST-NUCES  ·  DAA Semester 5  ·  Muhammad Aoun  |  Abdullah Mohzar  |  Muhammad Sarim",
+            True, (60, 65, 85))
+        surface.blit(cr, cr.get_rect(center=(W//2, H - 12)))
 
-        # ── Credits ────────────────────────────────────────────────────────
-        self._draw_credits(surface, W, H)
+    def _draw_logo(self, surface: pygame.Surface, W: int) -> None:
+        y0 = 48
+        font_big = get_font(size=26, bold=True)
+        font_sub = get_ui_font(size=12, bold=True)
 
-        # ── Right info card ────────────────────────────────────────────────
-        self._draw_info_card(surface, W)
+        t1 = font_big.render("LEGENDARY", True, TEXT_GOLD)
+        t2 = font_big.render("MOTORS", True, TEXT_WHITE)
+        t3 = font_sub.render("GRAND CHAMPIONSHIP", True, TEXT_ACCENT)
 
-    # ── Helpers ────────────────────────────────────────────────────────────
+        surface.blit(t1, t1.get_rect(centerx=188, y=y0))
+        surface.blit(t2, t2.get_rect(centerx=188, y=y0+34))
+        surface.blit(t3, t3.get_rect(centerx=188, y=y0+68))
+        pygame.draw.line(surface, TEXT_ACCENT, (50, y0+86), (326, y0+86), 2)
 
-    def _build_bg(self, W: int, H: int) -> pygame.Surface:
-        bg = pygame.Surface((W, H))
-        # Deep gradient sky
-        for y in range(H - 110):
-            t = y / (H - 110)
-            r = int(5  + 10  * t)
-            g = int(5  + 12  * t)
-            b = int(16 + 30  * t)
-            pygame.draw.line(bg, (r, g, b), (0, y), (W, y))
+    def _draw_menu_btn(self, surface: pygame.Surface, idx: int,
+                        label: str, icon: str, accent: tuple) -> None:
+        r   = self._btn_rects[idx]
+        hov = (idx == self._hovered)
 
-        # Building silhouettes
-        for bx, by, bw, bh in _BUILDINGS:
-            pygame.draw.rect(bg, (18, 20, 32), (bx, by, bw, bh))
-            # Roofline detail
-            pygame.draw.rect(bg, (28, 32, 48), (bx, by, bw, 4))
+        # Background
+        bg_col  = (20, 26, 42) if not hov else (28, 36, 58)
+        pygame.draw.rect(surface, bg_col, r, border_radius=8)
 
-        # Window lights
-        for wx, wy, ww, wh in _WINDOWS:
-            lum = random.randint(180, 255)
-            col = (lum, lum - 20, max(0, lum - 60))
-            pygame.draw.rect(bg, col, (wx, wy, ww, wh), border_radius=1)
+        # Accent left bar
+        bar_col = accent if hov else (38, 46, 68)
+        pygame.draw.rect(surface, bar_col, (r.x, r.y+6, 4, r.h-12), border_radius=2)
 
-        # Horizon glow
-        glow_surf = pygame.Surface((W, 60), pygame.SRCALPHA)
-        for gy in range(60):
-            alpha = int(80 * (1 - gy / 60))
-            pygame.draw.line(glow_surf, (0, 150, 220, alpha), (0, gy), (W, gy))
-        bg.blit(glow_surf, (0, H - 170))
+        # Glow overlay on hover
+        if hov:
+            glow_surf = pygame.Surface(r.size, pygame.SRCALPHA)
+            pygame.draw.rect(glow_surf, (*accent, 35), glow_surf.get_rect(), border_radius=8)
+            surface.blit(glow_surf, r.topleft)
 
-        return bg
+        # Border
+        bc = accent if hov else (38, 46, 68)
+        pygame.draw.rect(surface, bc, r, width=1, border_radius=8)
 
-    def _draw_logo(self, surface: pygame.Surface, W: int):
-        # Main title
-        font_title = get_font(size=58, bold=True, family="auto")
-        font_sub   = get_ui_font(size=18, bold=True)
+        # Label
+        font = get_ui_font(size=18, bold=True)
+        col  = TEXT_WHITE if not hov else (255, 255, 255)
+        txt  = font.render(label, True, col)
+        surface.blit(txt, (r.x + 20, r.centery - txt.get_height()//2))
 
-        title_txt  = "SMART RACING"
-        sub_txt    = "CHAMPIONSHIP"
+        # Arrow indicator on hover
+        if hov:
+            arr = get_ui_font(size=16, bold=True).render("▶", True, accent)
+            surface.blit(arr, (r.right - arr.get_width() - 14, r.centery - arr.get_height()//2))
 
-        # Glow effect — render shadow layers
-        glow_col = (0, 180, 255)
-        for offset in [(3,3),(2,2),(1,1)]:
-            shadow = font_title.render(title_txt, True, (0, 60, 100))
-            surface.blit(shadow, shadow.get_rect(center=(W//2 + offset[0], 68 + offset[1])))
+    def _draw_car_arrows(self, surface: pygame.Surface) -> None:
+        """Draw ◀ ▶ arrows to cycle through showcase cars."""
+        ax, ay = int(self._showcase_x), int(self._car_y) + 100
+        f = get_ui_font(size=20, bold=True)
+        lt = f.render("◀", True, (100, 120, 160))
+        rt = f.render("▶", True, (100, 120, 160))
+        surface.blit(lt, (ax - 70, ay))
+        surface.blit(rt, (ax + 50, ay))
 
-        txt_main = font_title.render(title_txt, True, (240, 244, 255))
-        surface.blit(txt_main, txt_main.get_rect(center=(W//2, 68)))
+    def handle_event(self, event: pygame.event.Event) -> None:
+        if event.type == pygame.MOUSEMOTION:
+            self._hovered = -1
+            for i, r in enumerate(self._btn_rects):
+                if r.collidepoint(event.pos):
+                    self._hovered = i
+                    break
 
-        # Subtitle with cyan accent
-        txt_sub = font_sub.render(sub_txt, True, TEXT_ACCENT)
-        surface.blit(txt_sub, txt_sub.get_rect(center=(W//2, 112)))
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            mx, my = event.pos
+            # Check showcase arrow clicks
+            ax, ay = int(self._showcase_x), int(self._car_y) + 100
+            if pygame.Rect(ax-80, ay-10, 36, 36).collidepoint(mx, my):
+                self._car_idx = (self._car_idx - 1) % len(CAR_DESIGNS)
+                self._showcasing = True
+                self._car_x = 1400.0
+                return
+            if pygame.Rect(ax+42, ay-10, 36, 36).collidepoint(mx, my):
+                self._car_idx = (self._car_idx + 1) % len(CAR_DESIGNS)
+                self._showcasing = True
+                self._car_x = 1400.0
+                return
 
-        # Underline bar
-        bar_w = 400
-        pygame.draw.rect(surface, TEXT_ACCENT, (W//2 - bar_w//2, 128, bar_w, 3), border_radius=2)
+            for i, r in enumerate(self._btn_rects):
+                if r.collidepoint(event.pos):
+                    label, screen, ctx, _, _ = MENU_ITEMS[i]
+                    if screen == "EXIT":
+                        import sys; pygame.quit(); sys.exit(0)
+                    self.switch_screen(screen, ctx)
+                    break
 
-        # Pulsing glow on bar
-        pulse = abs(math.sin(self.time * 2.0))
-        glow_bar = pygame.Surface((bar_w, 10), pygame.SRCALPHA)
-        pygame.draw.rect(glow_bar, (*TEXT_ACCENT, int(100*pulse)), glow_bar.get_rect(), border_radius=5)
-        surface.blit(glow_bar, (W//2 - bar_w//2, 125))
-
-        # DAA badge
-        badge_txt = get_ui_font(size=13).render("Design and Analysis of Algorithms — FAST-NUCES", True, TEXT_MUTED)
-        surface.blit(badge_txt, badge_txt.get_rect(center=(W//2, 148)))
-
-    def _draw_credits(self, surface: pygame.Surface, W: int, H: int):
-        font = get_ui_font(size=12)
-        members = [
-            "Muhammad Aoun  24P-3099",
-            "Abdullah Mohzar  24I-3124",
-            "Muhammad Sarim  24I-3069",
+    def _ensure_bg(self, surface: pygame.Surface, W: int, H: int) -> None:
+        if self._bg is not None:
+            return
+        # Dark gradient + cityscape
+        self._bg = pygame.Surface((W, H))
+        for y in range(H):
+            t = y / H
+            r = int(4 + 12*t); g = int(4+10*t); b = int(10+28*t)
+            pygame.draw.line(self._bg, (r, g, b), (0, y), (W, y))
+        # Building silhouettes (right side only since left is panel)
+        buildings = [
+            (350,480,70,240),(420,440,90,280),(510,400,65,320),
+            (575,460,80,260),(655,380,75,340),(730,430,60,290),
+            (790,360,90,360),(880,420,65,300),(945,380,80,340),
+            (1025,400,60,320),(1085,440,100,280),(1185,460,95,260),
         ]
-        y_start = H - 100
-        for i, m in enumerate(members):
-            txt = font.render(m, True, TEXT_MUTED)
-            surface.blit(txt, (W - txt.get_width() - 20, y_start + i * 18))
-
-    def _draw_info_card(self, surface: pygame.Surface, W: int):
-        """Right-side info card: controls cheat-sheet."""
-        cx = W - 200
-        card = pygame.Rect(cx - 160, 170, 340, 240)
-        card_surf = pygame.Surface(card.size, pygame.SRCALPHA)
-        pygame.draw.rect(card_surf, (8,10,20,200), card_surf.get_rect(), border_radius=12)
-        pygame.draw.rect(card_surf, (0,180,255,50), card_surf.get_rect(), width=1, border_radius=12)
-        surface.blit(card_surf, card.topleft)
-
-        hdr = get_ui_font(size=14, bold=True).render("CONTROLS", True, TEXT_ACCENT)
-        surface.blit(hdr, (card.x + 16, card.y + 14))
-        pygame.draw.line(surface, (0,180,255), (card.x+16, card.y+32), (card.right-16, card.y+32), 1)
-
-        lines = [
-            ("ARROW/WASD", "Steer car"),
-            ("SPACE",      "Nitro boost"),
-            ("P / ESC",    "Pause"),
-            ("R",          "Restart"),
-        ]
-        font_key = get_ui_font(size=12, bold=True)
-        font_val = get_ui_font(size=12)
-        for i, (key, val) in enumerate(lines):
-            y = card.y + 46 + i * 26
-            k_surf = font_key.render(key, True, TEXT_GOLD)
-            v_surf = font_val.render(val, True, TEXT_WHITE)
-            surface.blit(k_surf, (card.x + 16,  y))
-            surface.blit(v_surf, (card.x + 140, y))
-
-        # Algorithm count badge
-        badge = get_ui_font(size=12, bold=True).render("12 Algorithms  |  3 Circuits  |  4 Cars", True, (100,220,160))
-        surface.blit(badge, badge.get_rect(center=(card.centerx, card.y + card.height - 24)))
+        for bx,by,bw,bh in buildings:
+            pygame.draw.rect(self._bg, (14,16,26), (bx,by,bw,bh))
+            pygame.draw.rect(self._bg, (22,26,40), (bx,by,bw,3))
+        # Windows
+        random.seed(99)
+        for bx,by,bw,bh in buildings:
+            for wx in range(bx+6, bx+bw-6, 11):
+                for wy in range(by+8, by+bh-10, 14):
+                    if random.random() > 0.4:
+                        lum = random.randint(160,240)
+                        pygame.draw.rect(self._bg, (lum, lum-20, max(0,lum-70)), (wx,wy,6,8), border_radius=1)
