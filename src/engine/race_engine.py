@@ -110,10 +110,13 @@ class RaceEngine:
 
             # Assign first target vertex
             if veh.isHuman:
-                out = self.graph.get_outgoing_edges(veh.currentVertex, traversable_only=True)
+                veh.previousVertex = None
+                veh.steer_intent = None
+                out = self._get_forward_edges(veh, veh.currentVertex)
                 if out:
-                    veh.targetVertex = out[0].to_vertex
-                    veh.current_edge_id = out[0].id
+                    target_edge = self._pick_checkpoint_edge(veh, veh.currentVertex, out)
+                    veh.targetVertex = target_edge.to_vertex
+                    veh.current_edge_id = target_edge.id
             else:
                 ai = self.ai_controllers.get(veh.id)
                 if ai:
@@ -188,13 +191,19 @@ class RaceEngine:
 
         # 4. Choose next target vertex
         if veh.isHuman:
-            out_edges = self.graph.get_outgoing_edges(u, traversable_only=True)
-            if out_edges:
-                veh.targetVertex = out_edges[0].to_vertex
-                veh.current_edge_id = out_edges[0].id
+            forward_edges = self._get_forward_edges(veh, u)
+            if forward_edges:
+                chosen_edge = self._pick_human_next_edge(veh, u, forward_edges)
+                veh.targetVertex = chosen_edge.to_vertex
+                veh.current_edge_id = chosen_edge.id
             else:
-                veh.state = VehicleState.DNF
-                veh.dnf = True
+                all_edges = self.graph.get_outgoing_edges(u, traversable_only=True)
+                if all_edges:
+                    veh.targetVertex = all_edges[0].to_vertex
+                    veh.current_edge_id = all_edges[0].id
+                else:
+                    veh.state = VehicleState.DNF
+                    veh.dnf = True
         else:
             ai = self.ai_controllers.get(veh.id)
             if ai:
@@ -210,6 +219,64 @@ class RaceEngine:
                 else:
                     veh.state = VehicleState.DNF
                     veh.dnf = True
+
+    def _get_forward_edges(self, veh: Vehicle, u: int) -> List:
+        """Returns outgoing edges from u, excluding the node just arrived from to prevent going backward."""
+        out = self.graph.get_outgoing_edges(u, traversable_only=True)
+        prev = getattr(veh, "previousVertex", None)
+        if prev is not None and len(out) > 1:
+            filtered = [e for e in out if e.to_vertex != prev]
+            if filtered:
+                return filtered
+        return out
+
+    def _pick_human_next_edge(self, veh: Vehicle, u: int, forward_edges: List) -> object:
+        """Picks the next edge for the human player respecting buffered steer_intent or checkpoint path."""
+        steer = getattr(veh, "steer_intent", None)
+        veh.steer_intent = None
+
+        if len(forward_edges) > 1 and steer:
+            if steer == "right":
+                sc = next((e for e in forward_edges if e.isShortcut), None)
+                if sc:
+                    return sc
+                return forward_edges[-1]
+            elif steer == "left":
+                non_sc = [e for e in forward_edges if not e.isShortcut]
+                if non_sc:
+                    return non_sc[0]
+                return forward_edges[0]
+
+        return self._pick_checkpoint_edge(veh, u, forward_edges)
+
+    def _pick_checkpoint_edge(self, veh: Vehicle, u: int, forward_edges: List) -> object:
+        """Selects the forward edge that leads toward the next required checkpoint."""
+        target_vid = self.circuit.finish_vertex_id
+        if veh.nextCheckpoint <= len(self.circuit.checkpoint_ids):
+            cp_order = veh.nextCheckpoint
+            for vid in self.circuit.checkpoint_ids:
+                v = self.graph.get_vertex(vid)
+                if v and v.checkpointOrder == cp_order:
+                    target_vid = vid
+                    break
+
+        for e in forward_edges:
+            if e.to_vertex == target_vid:
+                return e
+
+        try:
+            from src.models.edge import RoutingPreset
+            res = self.route_planner.astar.run(u, target_vid, preset=RoutingPreset.BALANCED)
+            if res.get("reachable") and len(res.get("path", [])) >= 2:
+                next_vid = res["path"][1]
+                for e in forward_edges:
+                    if e.to_vertex == next_vid:
+                        return e
+        except Exception:
+            pass
+
+        non_sc = [e for e in forward_edges if not e.isShortcut]
+        return non_sc[0] if non_sc else forward_edges[0]
 
     def _finalize_race(self) -> None:
         """Assigns points, ranks finishers, and computes official results."""

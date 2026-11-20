@@ -59,6 +59,8 @@ class Vehicle:
     # State & Location
     currentVertex: int = 0
     targetVertex: Optional[int] = None
+    previousVertex: Optional[int] = None
+    steer_intent: Optional[str] = None
     progress: float = 0.0
     current_edge_id: Optional[int] = None
     state: VehicleState = VehicleState.IDLE
@@ -155,6 +157,7 @@ class Vehicle:
         self.progress += fraction_moved
         if self.progress >= 1.0:
             self.progress = 0.0
+            self.previousVertex = self.currentVertex
             self.currentVertex = self.targetVertex
             self.targetVertex = None
             self.current_edge_id = None

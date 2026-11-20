@@ -20,6 +20,7 @@ MENU_ITEMS = [
     ("CHAMPIONSHIP",    "championship",   {},                               (255, 160,   0), "TROPHY",    "hexagon"),
     ("QUICK RACE",      "circuit_select", {"mode": "quick"},                (220,  60,  20), "RACE",      "rect"),
     ("RACE EXPLORER",   "track_explorer", {"circuit_idx": 0},               (40,  160,  60), "MAP",       "rect"),
+    ("ALGORITHM LAB",   "algorithm_lab",  {"circuit_idx": 0},               (0,   210, 255), "LAB",       "rect"),
     ("GARAGE",          "garage",         {},                               (200,  80, 255), "GARAGE",    "rect"),
     ("SCOREBOARD",      "scoreboard",     {},                               (255, 200,   0), "SCORE",     "rect"),
     ("INSTRUCTIONS",    "instructions",   {},                               (100, 170, 255), "INFO",      "rect"),
@@ -135,7 +136,7 @@ class MainMenuScreen:
         # Menu hover state
         self._hovered = -1
         self._btn_rects: List[pygame.Rect] = []
-        btn_x, btn_y0, btn_w, btn_h, gap = 48, 148, 300, 52, 8
+        btn_x, btn_y0, btn_w, btn_h, gap = 48, 142, 300, 48, 7
         for i in range(len(MENU_ITEMS)):
             self._btn_rects.append(pygame.Rect(btn_x, btn_y0 + i*(btn_h+gap), btn_w, btn_h))
 

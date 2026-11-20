@@ -43,42 +43,52 @@ class DashboardScreen:
         self._select_sort("Merge Sort")
 
     def _create_sample_entries(self) -> List[ChampionshipEntry]:
-        """Creates sample entries for championship table (up to 10 racers, Section 4.6)."""
-        racers = [
-            (1, "Player (Human)", 50, 2, 4, 38.2),
-            (2, "Racer 2 (Conservative)", 43, 1, 6, 39.5),
-            (3, "Racer 3 (Aggressive)", 43, 1, 7, 37.8),  # Points tie with Racer 2!
-            (4, "Racer 4 (Optimal Distance)", 38, 0, 9, 39.1),
-            (5, "Racer 5 (Ghost)", 24, 0, 14, 42.1),
-            (6, "Racer 6 (Spectre)", 18, 0, 16, 43.0),
-            (7, "Racer 7 (Phantom)", 12, 0, 20, 44.2),
-            (8, "Racer 8 (Apex)", 8, 0, 24, 45.1),
-            (9, "Racer 9 (Vortex)", 4, 0, 28, 46.5),
-            (10, "Racer 10 (Zero)", 1, 0, 30, 48.0),
-        ]
-        entries = []
-        for rid, name, pts, wins, sum_pos, best_lap in racers:
-            ce = ChampionshipEntry(
-                racerId=rid,
-                name=name,
-                totalPoints=pts,
-                wins=wins,
-                sumOfFinishPositions=sum_pos,
-                bestFastestLap=best_lap
-            )
-            entries.append(ce)
-        return entries
+        """Creates championship entries from the persistent scoreboard (no fake players)."""
+        try:
+            from src.gui.screens.scoreboard import _load_scores
+            scores = _load_scores()
+            entries = []
+            for i, row in enumerate(scores):
+                lap_str = row.get("best_lap", "—")
+                if lap_str != "—" and ":" in lap_str:
+                    try:
+                        m, s = lap_str.split(":")
+                        best_lap = float(m) * 60 + float(s)
+                    except Exception:
+                        best_lap = 45.0 + i * 1.5
+                else:
+                    best_lap = 45.0 + i * 1.5
+
+                ce = ChampionshipEntry(
+                    racerId=i + 1,
+                    name=row["name"],
+                    totalPoints=row["pts"],
+                    wins=row["wins"],
+                    sumOfFinishPositions=row["rank"] * max(1, row["races"]),
+                    bestFastestLap=best_lap
+                )
+                entries.append(ce)
+            return entries
+        except Exception:
+            entries = []
+            cars = ["YOU", "Chick Hicks (AI)", "The King (AI)", "Doc Hudson (AI)",
+                    "Jackson Storm (AI)", "Sally Carrera (AI)", "Ramone (AI)", "Tow Mater (AI)"]
+            for i, name in enumerate(cars):
+                ce = ChampionshipEntry(
+                    racerId=i + 1,
+                    name=name,
+                    totalPoints=0,
+                    wins=0,
+                    sumOfFinishPositions=i + 1,
+                    bestFastestLap=45.0 + i * 1.5
+                )
+                entries.append(ce)
+            return entries
 
     def set_context(self, context: Dict) -> None:
         new_res = context.get("results")
         if new_res:
             self.results = new_res
-            # Update championship entries based on results
-            for r in self.results:
-                for ce in self.entries:
-                    if ce.racerId == r.racerId:
-                        ce.add_result(r)
-        self._select_sort(self.active_sort_method)
 
         # Persist championship scores (for BOTH player and AI bots) to global scoreboard JSON
         try:
@@ -91,6 +101,10 @@ class DashboardScreen:
                 )
         except Exception:
             pass  # Never crash the UI over scoreboard persistence
+
+        # Reload live entries directly from persistent scoreboard
+        self.entries = self._create_sample_entries()
+        self._select_sort(self.active_sort_method)
 
     def _select_sort(self, method: str) -> None:
         self.active_sort_method = method
@@ -148,28 +162,46 @@ class DashboardScreen:
         self._draw_sorting_analytics(surface)
 
     def _draw_podium(self, surface: pygame.Surface) -> None:
-        if len(self.sorted_entries) < 3:
-            return
-
         f_name = get_font(size=14, bold=True)
         f_pts = get_font(size=12)
+
+        # If race results are present, show the finishers of this race
+        if self.results and len(self.results) >= 3:
+            ranked = sorted(self.results, key=lambda r: (1 if r.dnf else 0, r.finishPosition if r.finishPosition else 999))
+            p1_name = ranked[0].racerName
+            p1_sub  = f"{ranked[0].finishTime:.1f}s" if not ranked[0].dnf else "DNF"
+            p2_name = ranked[1].racerName
+            p2_sub  = f"{ranked[1].finishTime:.1f}s" if not ranked[1].dnf else "DNF"
+            p3_name = ranked[2].racerName
+            p3_sub  = f"{ranked[2].finishTime:.1f}s" if not ranked[2].dnf else "DNF"
+        elif len(self.sorted_entries) >= 3:
+            p1_name = self.sorted_entries[0].name
+            p1_sub  = f"{self.sorted_entries[0].totalPoints} Pts"
+            p2_name = self.sorted_entries[1].name
+            p2_sub  = f"{self.sorted_entries[1].totalPoints} Pts"
+            p3_name = self.sorted_entries[2].name
+            p3_sub  = f"{self.sorted_entries[2].totalPoints} Pts"
+        else:
+            return
 
         # 2nd Place (Silver)
         r2 = pygame.Rect(400, 140, 130, 80)
         pygame.draw.rect(surface, (180, 190, 200), r2, border_radius=6)
         txt2 = f_name.render("2nd", True, (30, 30, 40))
         surface.blit(txt2, txt2.get_rect(center=(r2.centerx, r2.y + 20)))
-        n2 = f_pts.render(self.sorted_entries[1].name[:12], True, (20, 20, 30))
+        n2 = f_pts.render(p2_name[:12], True, (20, 20, 30))
         surface.blit(n2, n2.get_rect(center=(r2.centerx, r2.y + 45)))
+        s2 = f_pts.render(p2_sub, True, (40, 40, 50))
+        surface.blit(s2, s2.get_rect(center=(r2.centerx, r2.y + 64)))
 
         # 1st Place (Gold)
         r1 = pygame.Rect(545, 110, 150, 110)
         pygame.draw.rect(surface, (255, 215, 0), r1, border_radius=8)
-        txt1 = get_font(size=18, bold=True).render("1st CHAMPION", True, (30, 25, 0))
+        txt1 = get_font(size=18, bold=True).render("1st WINNER", True, (30, 25, 0))
         surface.blit(txt1, txt1.get_rect(center=(r1.centerx, r1.y + 25)))
-        n1 = f_name.render(self.sorted_entries[0].name[:14], True, (20, 20, 20))
+        n1 = f_name.render(p1_name[:14], True, (20, 20, 20))
         surface.blit(n1, n1.get_rect(center=(r1.centerx, r1.y + 55)))
-        p1 = f_pts.render(f"{self.sorted_entries[0].totalPoints} Pts", True, (40, 40, 40))
+        p1 = f_pts.render(p1_sub, True, (40, 40, 40))
         surface.blit(p1, p1.get_rect(center=(r1.centerx, r1.y + 80)))
 
         # 3rd Place (Bronze)
@@ -177,7 +209,7 @@ class DashboardScreen:
         pygame.draw.rect(surface, (205, 127, 50), r3, border_radius=6)
         txt3 = f_name.render("3rd", True, (30, 30, 40))
         surface.blit(txt3, txt3.get_rect(center=(r3.centerx, r3.y + 18)))
-        n3 = f_pts.render(self.sorted_entries[2].name[:12], True, (20, 20, 30))
+        n3 = f_pts.render(p3_name[:12], True, (20, 20, 30))
         surface.blit(n3, n3.get_rect(center=(r3.centerx, r3.y + 40)))
 
     def _draw_leaderboard_table(self, surface: pygame.Surface) -> None:

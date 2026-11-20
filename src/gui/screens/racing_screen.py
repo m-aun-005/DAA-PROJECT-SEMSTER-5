@@ -91,14 +91,10 @@ class RacingScreen:
 
             player = self.engine.vehicles[0]
             if player.isHuman and player.state == VehicleState.RACING:
-                out_edges = self.circuit.graph.get_outgoing_edges(player.currentVertex, traversable_only=True)
-                if len(out_edges) > 1:
-                    if event.key in (pygame.K_RIGHT, pygame.K_d):
-                        player.targetVertex   = out_edges[-1].to_vertex
-                        player.current_edge_id = out_edges[-1].id
-                    elif event.key in (pygame.K_LEFT, pygame.K_a):
-                        player.targetVertex   = out_edges[0].to_vertex
-                        player.current_edge_id = out_edges[0].id
+                if event.key in (pygame.K_RIGHT, pygame.K_d):
+                    player.steer_intent = "right"
+                elif event.key in (pygame.K_LEFT, pygame.K_a):
+                    player.steer_intent = "left"
 
     def update(self, dt: float) -> None:
         for btn in self.buttons:

@@ -242,7 +242,10 @@ class HUD:
         if not hasattr(veh, "nextCheckpoint"):
             return
         cp  = veh.nextCheckpoint
-        txt = f"→ CP {cp}" if cp <= 10 else "→ FINISH LINE"
+        txt = f"NEXT: CP {cp}" if cp <= 10 else "NEXT: FINISH LINE"
+        steer = getattr(veh, "steer_intent", None)
+        if steer:
+            txt += f"   |   TURN: {steer.upper()} ▶" if steer == "right" else f"   |   TURN: ◀ {steer.upper()}"
         lbl = get_ui_font(size=13, bold=True).render(txt, True, TEXT_GOLD)
         self.surface.blit(lbl, lbl.get_rect(center=(W//2, H - 110)))
 
