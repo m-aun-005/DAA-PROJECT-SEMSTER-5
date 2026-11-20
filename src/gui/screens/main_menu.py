@@ -237,7 +237,41 @@ class MainMenuScreen:
     def _ensure_bg(self, surface: pygame.Surface, W: int, H: int) -> None:
         if self._bg is not None:
             return
-        # Dark gradient + cityscape
+
+        # Check for user-provided background image in project root or assets
+        root_dir = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+        possible_imgs = [
+            os.path.join(root_dir, "images.jpg"),
+            os.path.join(root_dir, "home_bg.jpg"),
+            os.path.join(root_dir, "background.jpg"),
+            os.path.join(_ASSETS_DIR, "home_bg.jpg"),
+            os.path.join(_ASSETS_DIR, "images.jpg"),
+        ]
+
+        for p in possible_imgs:
+            if os.path.exists(p):
+                try:
+                    loaded = pygame.image.load(p).convert()
+                    iw, ih = loaded.get_size()
+                    scale = max(W / iw, H / ih)
+                    nw, nh = int(iw * scale), int(ih * scale)
+                    scaled = pygame.transform.smoothscale(loaded, (nw, nh))
+                    xo = (nw - W) // 2
+                    yo = (nh - H) // 2
+                    self._bg = scaled.subsurface(pygame.Rect(xo, yo, W, H)).copy()
+                    
+                    # Dark overlay with subtle gradient for readability of text and buttons
+                    dark = pygame.Surface((W, H), pygame.SRCALPHA)
+                    pygame.draw.rect(dark, (8, 10, 20, 150), dark.get_rect())
+                    for x in range(500):
+                        a = int(180 * (1.0 - x / 500))
+                        pygame.draw.line(dark, (4, 6, 14, a), (x, 0), (x, H))
+                    self._bg.blit(dark, (0, 0))
+                    return
+                except Exception:
+                    pass
+
+        # Dark gradient + cityscape fallback
         self._bg = pygame.Surface((W, H))
         for y in range(H):
             t = y / H

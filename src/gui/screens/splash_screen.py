@@ -15,10 +15,20 @@ _ASSETS_DIR = os.path.join(os.path.dirname(__file__), "..", "assets", "images")
 
 
 def _load_image_or_fallback(name: str) -> pygame.Surface:
-    """Load image or return None if not found."""
+    """Load image from assets or project root, or return None if not found."""
+    root_dir = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+    root_path = os.path.join(root_dir, name)
+    if os.path.exists(root_path):
+        try:
+            return pygame.image.load(root_path).convert()
+        except Exception:
+            pass
     path = os.path.normpath(os.path.join(_ASSETS_DIR, name))
     if os.path.exists(path):
-        return pygame.image.load(path).convert()
+        try:
+            return pygame.image.load(path).convert()
+        except Exception:
+            pass
     return None
 
 
@@ -35,6 +45,9 @@ class SplashScreen:
 
         # Try multiple images in priority order
         self._image_names = [
+            "home_bg.jpg",
+            "images.jpg",
+            "background.jpg",
             "vintage_race.jpg",
             "classic_car.jpg",
             "splash_bg.jpg",
