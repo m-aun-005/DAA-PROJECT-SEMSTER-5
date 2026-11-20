@@ -80,23 +80,15 @@ class DashboardScreen:
                         ce.add_result(r)
         self._select_sort(self.active_sort_method)
 
-        # Persist player score to global scoreboard JSON
+        # Persist championship scores (for BOTH player and AI bots) to global scoreboard JSON
         try:
-            from src.gui.screens.scoreboard import save_race_result
-            # Find player result (racerId == 1 is always the human player)
-            player_result = next((r for r in self.results if r.racerId == 1), None)
-            if player_result and player_result.finishPosition is not None:
-                # F1-style points: P1=25, P2=18, P3=15, P4=12, P5=10, P6=8, P7=6, P8=4, P9=2, P10=1
-                pts_table = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1]
-                pos = player_result.finishPosition
-                pts = pts_table[pos - 1] if 1 <= pos <= len(pts_table) else 0
-                won = 1 if pos == 1 else 0
-                lap_secs = getattr(player_result, "finishTime", None) or getattr(player_result, "totalTime", 0.0) or 0.0
-                mins = int(lap_secs) // 60
-                secs = lap_secs % 60
-                best_lap_str = f"{mins}:{secs:05.2f}"
-                car_name = context.get("car_name", "—")
-                save_race_result(pts, won, best_lap_str, car_name)
+            from src.gui.screens.scoreboard import save_championship_results
+            if self.results:
+                save_championship_results(
+                    results=self.results,
+                    player_car=context.get("car_name", "Lightning McQueen"),
+                    vehicles=context.get("vehicles", [])
+                )
         except Exception:
             pass  # Never crash the UI over scoreboard persistence
 

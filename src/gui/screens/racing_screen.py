@@ -54,12 +54,12 @@ class RacingScreen:
             # Human player
             p_des = CAR_DESIGNS[self.car_idx % len(CAR_DESIGNS)]
             self.engine.vehicles[0].color = p_des["body"]
-            self.engine.vehicles[0].name = p_des["name"]
-            # AI opponents pick distinct classic cars
+            self.engine.vehicles[0].name = "YOU"
+            # AI opponents pick distinct Cars characters
             for i, veh in enumerate(self.engine.vehicles[1:], 1):
                 opp_ci = (self.car_idx + i * 2) % len(CAR_DESIGNS)
                 veh.color = CAR_DESIGNS[opp_ci]["body"]
-                veh.name = CAR_DESIGNS[opp_ci]["name"]
+                veh.name = f"{CAR_DESIGNS[opp_ci]['name']} (AI)"
 
         self.engine.start_race()
         self.is_paused    = False
@@ -124,6 +124,7 @@ class RacingScreen:
                 "results":      self.engine.results,
                 "circuit_name": self.circuit.name,
                 "car_name":     _car_name,
+                "vehicles":     self.engine.vehicles,
             })
 
     def draw(self, surface: pygame.Surface) -> None:
