@@ -95,7 +95,7 @@ class CarSelectScreen:
         self._draw_bg(surface, W, H, car)
 
         # Header
-        hdr = get_font(size=34, bold=True).render("SELECT YOUR MACHINE", True, TEXT_WHITE)
+        hdr = get_font(size=34, bold=True).render("SELECT YOUR CHARACTER", True, TEXT_WHITE)
         surface.blit(hdr, hdr.get_rect(center=(W//2, 44)))
         pygame.draw.line(surface, accent, (W//2-240, 64), (W//2+240, 64), 2)
 

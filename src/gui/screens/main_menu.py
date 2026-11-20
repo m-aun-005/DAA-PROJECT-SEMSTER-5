@@ -1,207 +1,172 @@
-"""src/gui/screens/main_menu.py — Legendary Motors Championship Main Menu.
+"""src/gui/screens/main_menu.py — Pixar Cars / Radiator Springs Main Menu.
 
-Sections: Championship, Quick Race, Race Explorer, Garage, Instructions, Scoreboard, Exit.
+Route 66 road-sign style menu on a desert sunset background.
+Animated McQueen drives across bottom. Menu items styled as vintage road signs.
 """
 
 from typing import Callable, Dict, List
 import math
 import random
+import os
 import pygame
 from src.gui.components.car_renderer import draw_car_at, CAR_DESIGNS
 from src.gui.assets.colors import BG_DARK, TEXT_WHITE, TEXT_ACCENT, TEXT_GOLD, TEXT_MUTED, PANEL_BG, PANEL_BORDER
 from src.gui.assets.fonts import get_font, get_ui_font
-import os
 
 _ASSETS_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "assets", "images"))
 
 MENU_ITEMS = [
-    # (label, screen, context, accent_color, icon)
-    ("CHAMPIONSHIP",    "championship",   {},                               (255, 160,   0), "🏆"),
-    ("QUICK RACE",      "circuit_select", {"mode": "quick"},                (0,  200, 255), "🏁"),
-    ("RACE EXPLORER",   "track_explorer", {"circuit_idx": 0},               (0,  220, 100), "🗺"),
-    ("GARAGE",          "garage",         {},                               (200,  60, 255), "🔧"),
-    ("SCOREBOARD",      "scoreboard",     {},                               (255, 200,   0), "📊"),
-    ("INSTRUCTIONS",    "instructions",   {},                               (100, 180, 255), "📖"),
-    ("EXIT",            "EXIT",           {},                               (255,  60,  60), "✕"),
+    # (label, screen, context, accent_color, icon, sign_style)
+    ("CHAMPIONSHIP",    "championship",   {},                               (255, 160,   0), "TROPHY",    "hexagon"),
+    ("QUICK RACE",      "circuit_select", {"mode": "quick"},                (220,  60,  20), "RACE",      "rect"),
+    ("RACE EXPLORER",   "track_explorer", {"circuit_idx": 0},               (40,  160,  60), "MAP",       "rect"),
+    ("GARAGE",          "garage",         {},                               (200,  80, 255), "GARAGE",    "rect"),
+    ("SCOREBOARD",      "scoreboard",     {},                               (255, 200,   0), "SCORE",     "rect"),
+    ("INSTRUCTIONS",    "instructions",   {},                               (100, 170, 255), "INFO",      "rect"),
+    ("EXIT",            "EXIT",           {},                               (200,  40,  20), "EXIT",      "stop"),
 ]
 
 
+def _draw_desert_bg(surface: pygame.Surface, W: int, H: int, time: float) -> None:
+    """Draw the Radiator Springs desert sunset background."""
+    sky_bands = [
+        (0.00, (12,  6,  2)),
+        (0.15, (40, 18,  6)),
+        (0.30, (100, 48, 14)),
+        (0.45, (180, 90, 22)),
+        (0.60, (210, 120, 30)),
+        (0.72, (170, 80, 18)),
+        (0.82, (100, 44, 12)),
+        (1.00, (40,  18,  6)),
+    ]
+    for i in range(len(sky_bands)-1):
+        t0, c0 = sky_bands[i]
+        t1, c1 = sky_bands[i+1]
+        y0, y1 = int(t0 * H), int(t1 * H)
+        for y in range(y0, y1):
+            t = (y - y0) / max(1, y1 - y0)
+            r_ = int(c0[0] + (c1[0]-c0[0])*t)
+            g_ = int(c0[1] + (c1[1]-c0[1])*t)
+            b_ = int(c0[2] + (c1[2]-c0[2])*t)
+            pygame.draw.line(surface, (r_, g_, b_), (0, y), (W, y))
+
+    # Glowing sun
+    sun_x, sun_y = int(W * 0.68), int(H * 0.40)
+    for sr in range(100, 0, -5):
+        a = max(0, int(80 - sr * 0.5))
+        s = pygame.Surface((sr*2+2, sr*2+2), pygame.SRCALPHA)
+        pygame.draw.circle(s, (255, 215, 70, a), (sr+1, sr+1), sr)
+        surface.blit(s, (sun_x - sr - 1, sun_y - sr - 1))
+    pygame.draw.circle(surface, (255, 245, 160), (sun_x, sun_y), 38)
+    pygame.draw.circle(surface, (255, 255, 220), (sun_x, sun_y), 24)
+
+    # Rock formations — Willy's Butte / Monument Valley
+    rock_col = (18, 10, 4)
+    buttes = [
+        (int(W*0.42), H, 160, 280, 'mesa'),
+        (int(W*0.55), H,  90, 200, 'spire'),
+        (int(W*0.65), H, 120, 240, 'mesa'),
+        (int(W*0.78), H,  80, 160, 'spire'),
+        (int(W*0.88), H, 110, 200, 'mesa'),
+        (int(W*0.96), H,  70, 140, 'spire'),
+    ]
+    for bx, by, bw, bh, style in buttes:
+        if style == 'mesa':
+            pts = [(bx-bw//2, by), (bx-bw*2//3, by-bh), (bx+bw*2//3, by-bh), (bx+bw//2, by)]
+        else:
+            pts = [(bx-bw//2, by), (bx-bw//5, by-bh), (bx+bw//5, by-bh), (bx+bw//2, by)]
+        pygame.draw.polygon(surface, rock_col, pts)
+        pygame.draw.line(surface, (45, 25, 10), pts[1], pts[2], 2)
+
+    # Ground / desert floor
+    ground_y = int(H * 0.72)
+    pygame.draw.rect(surface, (25, 16, 6), (0, ground_y, W, H - ground_y))
+
+    # Route 66 road (perspective) — right side
+    road_pts = [
+        (int(W*0.42), ground_y),
+        (int(W*0.68), ground_y),
+        (W, H),
+        (int(W*0.42), H),
+    ]
+    pygame.draw.polygon(surface, (35, 28, 16), road_pts)
+
+    # Road dashes (animated)
+    for d in range(6):
+        t = ((d / 6) + time * 0.12) % 1.0
+        gy = ground_y + int((H - ground_y) * t)
+        road_right = int(W*0.42 + (W - W*0.42) * t)
+        cx_ = (int(W*0.55) + road_right) // 2
+        dash_w = max(2, int((road_right - int(W*0.55)) * 0.04))
+        a_ = int(180 * t)
+        ds = pygame.Surface((dash_w*2, 10), pygame.SRCALPHA)
+        pygame.draw.rect(ds, (255, 210, 60, a_), ds.get_rect(), border_radius=1)
+        surface.blit(ds, (cx_ - dash_w, gy))
+
+    # Cactus silhouettes
+    for cx_, cy_ in [(int(W*0.40), ground_y - 20), (int(W*0.72), ground_y - 15)]:
+        # Trunk
+        pygame.draw.rect(surface, rock_col, (cx_-4, cy_-40, 8, 40))
+        # Arms
+        pygame.draw.rect(surface, rock_col, (cx_-16, cy_-28, 14, 6))
+        pygame.draw.rect(surface, rock_col, (cx_+2,  cy_-24, 14, 6))
+        pygame.draw.rect(surface, rock_col, (cx_-16, cy_-40, 6, 14))
+        pygame.draw.rect(surface, rock_col, (cx_+10, cy_-36, 6, 14))
+
+
 class MainMenuScreen:
-    """Legendary Motors Championship — Cinematic main menu."""
+    """Radiator Springs Legendary Motors Grand Championship — Cinematic main menu."""
 
     def __init__(self, switch_screen: Callable[[str, Dict], None]):
         self.switch_screen = switch_screen
         self.time          = 0.0
         self._bg: pygame.Surface | None = None
+        self._photo_bg: pygame.Surface | None = None
+        self._photo_checked = False
 
-        # Animated showcase car
-        self._car_x    = 1500.0
-        self._car_y    = 560.0
-        self._car_idx  = 0
-        self._car_dir  = -1   # going left
-        self._showcasing = True
+        # Lightning McQueen drives in from right
+        self._mcqueen_x  = 1500.0
+        self._mcqueen_y  = 0.0        # set in first draw
+        self._car_idx    = 0
+        self._car_dir    = -1
         self._showcase_x = 920.0
-        self._showcase_alpha = 0.0
+        self._showcasing = True
 
-        random.seed(12)
-        self._stars = [(random.randint(0,1280), random.randint(0,420),
-                        random.random()*1.4+0.4) for _ in range(60)]
-
-        # Menu buttons — stored as rects + labels; drawn manually for custom look
+        # Menu hover state
         self._hovered = -1
         self._btn_rects: List[pygame.Rect] = []
-        btn_x, btn_y0, btn_w, btn_h, gap = 48, 148, 290, 54, 10
+        btn_x, btn_y0, btn_w, btn_h, gap = 48, 148, 300, 52, 8
         for i in range(len(MENU_ITEMS)):
             self._btn_rects.append(pygame.Rect(btn_x, btn_y0 + i*(btn_h+gap), btn_w, btn_h))
 
-    def handle_event(self, event: pygame.event.Event) -> None:
-        if event.type == pygame.MOUSEMOTION:
-            self._hovered = -1
-            for i, r in enumerate(self._btn_rects):
-                if r.collidepoint(event.pos):
-                    self._hovered = i
-                    break
-
-        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            for i, r in enumerate(self._btn_rects):
-                if r.collidepoint(event.pos):
-                    label, screen, ctx, _, _ = MENU_ITEMS[i]
-                    if screen == "EXIT":
-                        import sys; pygame.quit(); sys.exit(0)
-                    self.switch_screen(screen, ctx)
-                    break
-
-    def update(self, dt: float) -> None:
-        self.time += dt
-        # Showcase car drives in from right
-        if self._showcasing:
-            target = self._showcase_x
-            if self._car_x > target + 10:
-                self._car_x -= 220 * dt
-            else:
-                self._car_x = target
-                self._showcasing = False
-        # Rotate through cars every 4s
-        if int(self.time) % 5 == 0 and not self._showcasing:
-            pass  # could auto-rotate
-        self._showcase_alpha = min(255.0, self._showcase_alpha + dt * 200)
-
-    def draw(self, surface: pygame.Surface) -> None:
-        W, H = surface.get_size()
-        self._ensure_bg(surface, W, H)
-
-        # ── Background ────────────────────────────────────────────────────────
-        surface.blit(self._bg, (0, 0))
-
-        # Stars
-        for sx, sy, sr in self._stars:
-            b = int(140 + 90 * math.sin(self.time*1.8 + sx*0.08))
-            pygame.draw.circle(surface, (b, b, b), (sx, sy), int(sr))
-
-        # Ground strip
-        pygame.draw.rect(surface, (10, 12, 20), (0, H - 120, W, 120))
-        pygame.draw.line(surface, (0, 180, 255), (0, H - 120), (W, H - 120), 2)
-        # Animated road lines
-        for lx in range(-80, W + 80, 100):
-            ox = int((lx + self.time * 55) % (W + 100)) - 50
-            pygame.draw.rect(surface, (45, 50, 65), (ox, H-80, 55, 7), border_radius=2)
-
-        # ── Showcase car ──────────────────────────────────────────────────────
-        if self._showcase_alpha > 0:
-            showcase_surf = pygame.Surface((260, 220), pygame.SRCALPHA)
-            # Glow halo behind car
-            glow = pygame.Surface((240, 160), pygame.SRCALPHA)
-            ac = CAR_DESIGNS[self._car_idx]["body"]
-            for gr in range(70, 0, -4):
-                pygame.draw.ellipse(glow, (*ac, max(0, gr-50)), (40-gr//2, 50-gr//4, 160+gr, 80+gr//2))
-            surface.blit(glow, (int(self._car_x)-120, int(self._car_y)-80))
-
-            draw_car_at(surface, int(self._car_x), int(self._car_y),
-                        self._car_idx, angle=math.pi, scale=2.4,
-                        nitro_active=False, is_human=False, show_shadow=True)
-
-        # ── Car name below ────────────────────────────────────────────────────
-        car = CAR_DESIGNS[self._car_idx]
-        name_font = get_ui_font(size=14, bold=True)
-        n_txt = name_font.render(f"{car['year']}  {car['name']}", True, TEXT_GOLD)
-        surface.blit(n_txt, n_txt.get_rect(center=(int(self._showcase_x), int(self._car_y) + 90)))
-
-        # Arrow nav for showcase car
-        self._draw_car_arrows(surface)
-
-        # ── Left panel + buttons ──────────────────────────────────────────────
-        panel_surf = pygame.Surface((340, H - 60), pygame.SRCALPHA)
-        pygame.draw.rect(panel_surf, (5, 7, 16, 230), panel_surf.get_rect(), border_radius=14)
-        pygame.draw.rect(panel_surf, (0, 180, 255, 40), panel_surf.get_rect(), width=1, border_radius=14)
-        surface.blit(panel_surf, (30, 30))
-
-        self._draw_logo(surface, W)
-
-        for i, (label, screen, ctx, accent, icon) in enumerate(MENU_ITEMS):
-            self._draw_menu_btn(surface, i, label, icon, accent)
-
-        # ── Bottom credits ────────────────────────────────────────────────────
-        cr = get_ui_font(size=11).render(
-            "FAST-NUCES  ·  DAA Semester 5  ·  Muhammad Aoun  |  Abdullah Mohzar  |  Muhammad Sarim",
-            True, (60, 65, 85))
-        surface.blit(cr, cr.get_rect(center=(W//2, H - 12)))
-
-    def _draw_logo(self, surface: pygame.Surface, W: int) -> None:
-        y0 = 48
-        font_big = get_font(size=26, bold=True)
-        font_sub = get_ui_font(size=12, bold=True)
-
-        t1 = font_big.render("LEGENDARY", True, TEXT_GOLD)
-        t2 = font_big.render("MOTORS", True, TEXT_WHITE)
-        t3 = font_sub.render("GRAND CHAMPIONSHIP", True, TEXT_ACCENT)
-
-        surface.blit(t1, t1.get_rect(centerx=188, y=y0))
-        surface.blit(t2, t2.get_rect(centerx=188, y=y0+34))
-        surface.blit(t3, t3.get_rect(centerx=188, y=y0+68))
-        pygame.draw.line(surface, TEXT_ACCENT, (50, y0+86), (326, y0+86), 2)
-
-    def _draw_menu_btn(self, surface: pygame.Surface, idx: int,
-                        label: str, icon: str, accent: tuple) -> None:
-        r   = self._btn_rects[idx]
-        hov = (idx == self._hovered)
-
-        # Background
-        bg_col  = (20, 26, 42) if not hov else (28, 36, 58)
-        pygame.draw.rect(surface, bg_col, r, border_radius=8)
-
-        # Accent left bar
-        bar_col = accent if hov else (38, 46, 68)
-        pygame.draw.rect(surface, bar_col, (r.x, r.y+6, 4, r.h-12), border_radius=2)
-
-        # Glow overlay on hover
-        if hov:
-            glow_surf = pygame.Surface(r.size, pygame.SRCALPHA)
-            pygame.draw.rect(glow_surf, (*accent, 35), glow_surf.get_rect(), border_radius=8)
-            surface.blit(glow_surf, r.topleft)
-
-        # Border
-        bc = accent if hov else (38, 46, 68)
-        pygame.draw.rect(surface, bc, r, width=1, border_radius=8)
-
-        # Label
-        font = get_ui_font(size=18, bold=True)
-        col  = TEXT_WHITE if not hov else (255, 255, 255)
-        txt  = font.render(label, True, col)
-        surface.blit(txt, (r.x + 20, r.centery - txt.get_height()//2))
-
-        # Arrow indicator on hover
-        if hov:
-            arr = get_ui_font(size=16, bold=True).render("▶", True, accent)
-            surface.blit(arr, (r.right - arr.get_width() - 14, r.centery - arr.get_height()//2))
-
-    def _draw_car_arrows(self, surface: pygame.Surface) -> None:
-        """Draw ◀ ▶ arrows to cycle through showcase cars."""
-        ax, ay = int(self._showcase_x), int(self._car_y) + 100
-        f = get_ui_font(size=20, bold=True)
-        lt = f.render("◀", True, (100, 120, 160))
-        rt = f.render("▶", True, (100, 120, 160))
-        surface.blit(lt, (ax - 70, ay))
-        surface.blit(rt, (ax + 50, ay))
+    def _check_photo(self, W: int, H: int) -> None:
+        if self._photo_checked:
+            return
+        self._photo_checked = True
+        root_dir = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+        for name in ["images.jpg", "home_bg.jpg", "background.jpg",
+                     os.path.join(_ASSETS_DIR, "home_bg.jpg"),
+                     os.path.join(_ASSETS_DIR, "images.jpg")]:
+            p = os.path.join(root_dir, name) if not os.path.isabs(name) else name
+            if os.path.exists(p):
+                try:
+                    loaded = pygame.image.load(p).convert()
+                    iw, ih = loaded.get_size()
+                    scale = max(W / iw, H / ih)
+                    nw, nh = int(iw * scale), int(ih * scale)
+                    scaled = pygame.transform.smoothscale(loaded, (nw, nh))
+                    xo = (nw - W) // 2; yo = (nh - H) // 2
+                    self._photo_bg = scaled.subsurface(pygame.Rect(xo, yo, W, H)).copy()
+                    # Warm Cars-movie overlay
+                    dark = pygame.Surface((W, H), pygame.SRCALPHA)
+                    pygame.draw.rect(dark, (15, 8, 2, 165), dark.get_rect())
+                    for x in range(430):
+                        a = int(200 * (1.0 - x / 430))
+                        pygame.draw.line(dark, (10, 5, 1, a), (x, 0), (x, H))
+                    self._photo_bg.blit(dark, (0, 0))
+                    return
+                except Exception:
+                    pass
 
     def handle_event(self, event: pygame.event.Event) -> None:
         if event.type == pygame.MOUSEMOTION:
@@ -213,85 +178,222 @@ class MainMenuScreen:
 
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             mx, my = event.pos
-            # Check showcase arrow clicks
-            ax, ay = int(self._showcase_x), int(self._car_y) + 100
+            # Showcase car arrow clicks
+            ax, ay = int(self._showcase_x), int(self._mcqueen_y) + 100
             if pygame.Rect(ax-80, ay-10, 36, 36).collidepoint(mx, my):
                 self._car_idx = (self._car_idx - 1) % len(CAR_DESIGNS)
-                self._showcasing = True
-                self._car_x = 1400.0
+                self._showcasing = True; self._mcqueen_x = 1400.0
                 return
             if pygame.Rect(ax+42, ay-10, 36, 36).collidepoint(mx, my):
                 self._car_idx = (self._car_idx + 1) % len(CAR_DESIGNS)
-                self._showcasing = True
-                self._car_x = 1400.0
+                self._showcasing = True; self._mcqueen_x = 1400.0
                 return
-
             for i, r in enumerate(self._btn_rects):
                 if r.collidepoint(event.pos):
-                    label, screen, ctx, _, _ = MENU_ITEMS[i]
+                    label, screen, ctx, _, _, _ = MENU_ITEMS[i]
                     if screen == "EXIT":
                         import sys; pygame.quit(); sys.exit(0)
                     self.switch_screen(screen, ctx)
                     break
 
-    def _ensure_bg(self, surface: pygame.Surface, W: int, H: int) -> None:
-        if self._bg is not None:
-            return
+    def update(self, dt: float) -> None:
+        self.time += dt
+        if self._showcasing:
+            target = self._showcase_x
+            if self._mcqueen_x > target + 10:
+                self._mcqueen_x -= 240 * dt
+            else:
+                self._mcqueen_x = target
+                self._showcasing = False
 
-        # Check for user-provided background image in project root or assets
-        root_dir = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
-        possible_imgs = [
-            os.path.join(root_dir, "images.jpg"),
-            os.path.join(root_dir, "home_bg.jpg"),
-            os.path.join(root_dir, "background.jpg"),
-            os.path.join(_ASSETS_DIR, "home_bg.jpg"),
-            os.path.join(_ASSETS_DIR, "images.jpg"),
-        ]
+    def draw(self, surface: pygame.Surface) -> None:
+        W, H = surface.get_size()
+        self._mcqueen_y = H * 0.60
+        self._check_photo(W, H)
 
-        for p in possible_imgs:
-            if os.path.exists(p):
-                try:
-                    loaded = pygame.image.load(p).convert()
-                    iw, ih = loaded.get_size()
-                    scale = max(W / iw, H / ih)
-                    nw, nh = int(iw * scale), int(ih * scale)
-                    scaled = pygame.transform.smoothscale(loaded, (nw, nh))
-                    xo = (nw - W) // 2
-                    yo = (nh - H) // 2
-                    self._bg = scaled.subsurface(pygame.Rect(xo, yo, W, H)).copy()
-                    
-                    # Dark overlay with subtle gradient for readability of text and buttons
-                    dark = pygame.Surface((W, H), pygame.SRCALPHA)
-                    pygame.draw.rect(dark, (8, 10, 20, 150), dark.get_rect())
-                    for x in range(500):
-                        a = int(180 * (1.0 - x / 500))
-                        pygame.draw.line(dark, (4, 6, 14, a), (x, 0), (x, H))
-                    self._bg.blit(dark, (0, 0))
-                    return
-                except Exception:
-                    pass
+        # ── Background ────────────────────────────────────────────────────────
+        if self._photo_bg is not None:
+            surface.blit(self._photo_bg, (0, 0))
+        else:
+            _draw_desert_bg(surface, W, H, self.time)
 
-        # Dark gradient + cityscape fallback
-        self._bg = pygame.Surface((W, H))
-        for y in range(H):
-            t = y / H
-            r = int(4 + 12*t); g = int(4+10*t); b = int(10+28*t)
-            pygame.draw.line(self._bg, (r, g, b), (0, y), (W, y))
-        # Building silhouettes (right side only since left is panel)
-        buildings = [
-            (350,480,70,240),(420,440,90,280),(510,400,65,320),
-            (575,460,80,260),(655,380,75,340),(730,430,60,290),
-            (790,360,90,360),(880,420,65,300),(945,380,80,340),
-            (1025,400,60,320),(1085,440,100,280),(1185,460,95,260),
-        ]
-        for bx,by,bw,bh in buildings:
-            pygame.draw.rect(self._bg, (14,16,26), (bx,by,bw,bh))
-            pygame.draw.rect(self._bg, (22,26,40), (bx,by,bw,3))
-        # Windows
-        random.seed(99)
-        for bx,by,bw,bh in buildings:
-            for wx in range(bx+6, bx+bw-6, 11):
-                for wy in range(by+8, by+bh-10, 14):
-                    if random.random() > 0.4:
-                        lum = random.randint(160,240)
-                        pygame.draw.rect(self._bg, (lum, lum-20, max(0,lum-70)), (wx,wy,6,8), border_radius=1)
+        # ── Animated dust cloud when car arrives ─────────────────────────────
+        if self._showcasing:
+            for d in range(3):
+                dr = int(14 + d * 8)
+                dx = int(self._mcqueen_x) + int(math.cos(self.time * 8 + d) * 6)
+                dy = int(self._mcqueen_y) + 20 + d * 4
+                dust = pygame.Surface((dr*2, dr*2), pygame.SRCALPHA)
+                pygame.draw.circle(dust, (160, 120, 60, max(0, 100-d*25)), (dr, dr), dr)
+                surface.blit(dust, (dx - dr, dy - dr))
+
+        # ── Ground strip at bottom ────────────────────────────────────────────
+        gnd_y = int(H * 0.72)
+        # Route 66 road dashes at the bottom
+        for lx in range(-80, W + 80, 100):
+            ox = int((lx + self.time * 55) % (W + 100)) - 50
+            pygame.draw.rect(surface, (60, 50, 28), (ox, int(H - 80), 55, 7), border_radius=2)
+
+        # ── Showcase car (Lightning McQueen by default) ───────────────────────
+        car = CAR_DESIGNS[self._car_idx]
+        draw_car_at(surface, int(self._mcqueen_x), int(self._mcqueen_y),
+                    self._car_idx, angle=math.pi, scale=2.6,
+                    nitro_active=False, is_human=False, show_shadow=True)
+
+        # Car name below
+        name_f = get_ui_font(size=16, bold=True)
+        n_txt = name_f.render(f"{car['year']}  {car['name']}", True, (255, 200, 60))
+        surface.blit(n_txt, n_txt.get_rect(center=(int(self._showcase_x), int(self._mcqueen_y) + 90)))
+
+        # Arrow nav for showcase car
+        ax, ay = int(self._showcase_x), int(self._mcqueen_y) + 100
+        from src.gui.components.button import draw_arrow_button
+        draw_arrow_button(surface, (ax-82, ay-8, 36, 36), "left",  color=(255,180,40), hovered=False)
+        draw_arrow_button(surface, (ax+46, ay-8, 36, 36), "right", color=(255,180,40), hovered=False)
+
+        # ── LEFT PANEL — Radiator Springs wooden sign board ───────────────────
+        panel_surf = pygame.Surface((360, H - 60), pygame.SRCALPHA)
+        # Dark wooden plank effect
+        pygame.draw.rect(panel_surf, (28, 16, 6, 240), panel_surf.get_rect(), border_radius=10)
+        # Wood grain lines
+        for gy in range(0, H, 18):
+            pygame.draw.line(panel_surf, (40, 24, 10, 60), (0, gy), (360, gy), 1)
+        # Border — weathered metal frame
+        pygame.draw.rect(panel_surf, (120, 76, 28, 220), panel_surf.get_rect(), width=3, border_radius=10)
+        surface.blit(panel_surf, (22, 30))
+
+        # ── LOGO — Cars-movie style title ────────────────────────────────────
+        self._draw_logo(surface)
+
+        # ── MENU BUTTONS — Route 66 road signs ───────────────────────────────
+        for i, (label, screen, ctx, accent, icon, sign_style) in enumerate(MENU_ITEMS):
+            self._draw_road_sign_btn(surface, i, label, icon, accent, sign_style)
+
+        # ── Bottom credits ────────────────────────────────────────────────────
+        cr = get_ui_font(size=11).render(
+            "FAST-NUCES  DAA Semester 5  ·  Muhammad Aoun  |  Abdullah Mohzar  |  Muhammad Sarim",
+            True, (100, 65, 28))
+        surface.blit(cr, cr.get_rect(center=(W//2, H - 12)))
+
+    def _draw_logo(self, surface: pygame.Surface) -> None:
+        """Cars-movie style 'Legendary Motors' logo with metallic glow."""
+        cx = 202   # center of left panel
+
+        # Piston Cup badge at top
+        self._draw_piston_cup_badge(surface, cx, 56)
+
+        # Title
+        f_big = get_font(size=24, bold=True)
+        f_sub = get_ui_font(size=12, bold=True)
+
+        # Glow
+        for off in [3, 2]:
+            g = f_big.render("LEGENDARY", True, (140, 60, 0))
+            g.set_alpha(50)
+            surface.blit(g, g.get_rect(center=(cx, 94 + off)))
+
+        t1 = f_big.render("LEGENDARY", True, (255, 200, 50))
+        t2 = f_big.render("MOTORS", True, (255, 240, 180))
+        t3 = f_sub.render("GRAND  CHAMPIONSHIP", True, (200, 140, 40))
+
+        surface.blit(t1, t1.get_rect(center=(cx, 94)))
+        surface.blit(t2, t2.get_rect(center=(cx, 122)))
+
+        # Route 66 divider
+        pygame.draw.line(surface, (140, 90, 24), (60, 140), (344, 140), 1)
+        pygame.draw.line(surface, (80,  50, 12), (60, 141), (344, 141), 1)
+
+        surface.blit(t3, t3.get_rect(center=(cx, 154)))
+
+    def _draw_piston_cup_badge(self, surface: pygame.Surface, cx: int, cy: int) -> None:
+        """Draw a small Piston Cup trophy badge."""
+        # Cup body
+        pygame.draw.rect(surface, (180, 130, 20), (cx-14, cy-16, 28, 20), border_radius=4)
+        # Handles
+        pygame.draw.line(surface, (140, 100, 10), (cx-14, cy-10), (cx-22, cy-6), 3)
+        pygame.draw.line(surface, (140, 100, 10), (cx+14, cy-10), (cx+22, cy-6), 3)
+        # Base
+        pygame.draw.rect(surface, (200, 150, 30), (cx-10, cy+4,  20, 5))
+        pygame.draw.rect(surface, (200, 150, 30), (cx-16, cy+9,  32, 4))
+        # Shine
+        pygame.draw.rect(surface, (255, 230, 100), (cx-6, cy-14, 6, 10), border_radius=2)
+        # Text
+        f = get_ui_font(size=8, bold=True)
+        t = f.render("PISTON CUP", True, (255, 230, 80))
+        surface.blit(t, t.get_rect(center=(cx, cy + 20)))
+
+    def _draw_road_sign_btn(self, surface: pygame.Surface, i: int, label: str,
+                             icon: str, accent: tuple, sign_style: str) -> None:
+        """Draw a menu item styled as a vintage road sign."""
+        r = self._btn_rects[i]
+        is_hov = (i == self._hovered)
+
+        # Sign background
+        if sign_style == 'stop':
+            # Stop sign octagon
+            pts = self._octagon_pts(r.centerx, r.centery, r.height//2 - 2)
+            bg_col = (160, 20, 10) if not is_hov else (220, 40, 20)
+            pygame.draw.polygon(surface, bg_col, pts)
+            pygame.draw.polygon(surface, (240, 240, 240) if is_hov else (200, 180, 160), pts, 2)
+        elif sign_style == 'hexagon':
+            # Championship hexagon
+            pts = self._hex_pts(r.centerx, r.centery, r.height//2 - 2)
+            bg_col = (120, 80, 10) if not is_hov else (180, 130, 20)
+            pygame.draw.polygon(surface, bg_col, pts)
+            pygame.draw.polygon(surface, (255, 210, 60) if is_hov else (180, 140, 40), pts, 2)
+        else:
+            # Standard rectangle road sign
+            bg_col = (28, 50, 20) if not is_hov else (40, 80, 30)
+            if sign_style == 'rect' and label == "GARAGE":
+                bg_col = (50, 20, 70) if not is_hov else (80, 30, 110)
+            elif label == "SCOREBOARD":
+                bg_col = (70, 50, 10) if not is_hov else (110, 80, 15)
+            elif label == "INSTRUCTIONS":
+                bg_col = (20, 40, 80) if not is_hov else (30, 60, 120)
+            elif label == "QUICK RACE":
+                bg_col = (80, 20, 10) if not is_hov else (120, 30, 15)
+            elif label == "RACE EXPLORER":
+                bg_col = (20, 60, 30) if not is_hov else (30, 90, 45)
+            pygame.draw.rect(surface, bg_col, r, border_radius=6)
+            # Metal frame border
+            bc = accent if is_hov else (100, 70, 30)
+            pygame.draw.rect(surface, bc, r, width=2, border_radius=6)
+            # Rivet corners
+            for rx, ry in [(r.x+6, r.y+6), (r.right-6, r.y+6),
+                           (r.x+6, r.bottom-6), (r.right-6, r.bottom-6)]:
+                pygame.draw.circle(surface, (140, 100, 40), (rx, ry), 3)
+                pygame.draw.circle(surface, (200, 160, 80), (rx, ry), 2)
+
+        # Hover glow
+        if is_hov:
+            gl = pygame.Surface(r.size, pygame.SRCALPHA)
+            pygame.draw.rect(gl, (*accent, 40), gl.get_rect(), border_radius=6)
+            surface.blit(gl, r.topleft)
+
+        # Label text
+        f = get_ui_font(size=16, bold=True)
+        col = accent if is_hov else (220, 200, 150)
+        txt = f.render(label, True, col)
+        # Left-padded (not on stop/hex signs)
+        if sign_style in ('stop', 'hexagon'):
+            surface.blit(txt, txt.get_rect(center=r.center))
+        else:
+            t_rect = txt.get_rect(centery=r.centery, x=r.x + 36)
+            surface.blit(txt, t_rect)
+            # Left accent bar
+            bar_col = accent if is_hov else (80, 55, 20)
+            pygame.draw.rect(surface, bar_col, (r.x + 2, r.y + 6, 4, r.height - 12), border_radius=2)
+
+    def _octagon_pts(self, cx, cy, r):
+        pts = []
+        for i in range(8):
+            a = math.pi / 8 + i * math.pi / 4
+            pts.append((int(cx + r * math.cos(a)), int(cy + r * math.sin(a))))
+        return pts
+
+    def _hex_pts(self, cx, cy, r):
+        pts = []
+        for i in range(6):
+            a = math.pi / 6 + i * math.pi / 3
+            pts.append((int(cx + r * math.cos(a)), int(cy + r * math.sin(a))))
+        return pts

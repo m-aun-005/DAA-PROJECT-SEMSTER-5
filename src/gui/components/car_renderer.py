@@ -1,139 +1,151 @@
-"""src/gui/components/car_renderer.py — Classic Muscle Car Renderer with pseudo-3D look.
+"""src/gui/components/car_renderer.py — Pixar Cars Movie Character Renderer.
 
-Draws detailed 2D cars that evoke a 3D feel through:
-- Gradient shading (lighter top, darker sides)
-- Drop shadows
-- Detailed polygon shapes matching real classic muscle car proportions
-- Roof perspective distortion
-- Metallic highlight strips
+Draws iconic Cars-movie characters as 2D cars with pseudo-3D shading.
+Characters: Lightning McQueen, Mater, Sally Carrera, Doc Hudson, Chick Hicks,
+            Strip Weathers (The King), Ramone, Jackson Storm.
 """
-
 from typing import Tuple, List
 import math
 import pygame
 
 
-# ─── Legendary Classic Car Catalogue (1960s-70s) ─────────────────────────────
+# ─── Cars Movie Character Catalogue ──────────────────────────────────────────
 CAR_DESIGNS = [
-    # 0: Ford GT40 Mk.II (1966 Le Mans winner) — Gulf livery blue/orange
+    # 0: Lightning McQueen — Rust-eze red with #95 and lightning bolt stripes
     {
-        "name":        "Ford GT40 Mk.II",
-        "year":        "1966",
-        "class":       "GT",
-        "body":        (0,   75,  135),    # Gulf blue
-        "body_hi":     (20,  120, 190),    # highlight
-        "body_lo":     (0,   40,   80),    # shadow
-        "roof":        (0,   50,  100),
-        "trim":        (255, 120,   0),    # Gulf orange accent
-        "win":         (100, 180, 220),
+        "name":        "Lightning McQueen",
+        "year":        "2006",
+        "class":       "Stock Car",
+        "body":        (200,  25,  15),    # Hot-rod crimson red
+        "body_hi":     (255,  80,  50),    # Bright highlight
+        "body_lo":     (120,  10,   5),    # Deep shadow
+        "roof":        (170,  18,  10),
+        "trim":        (255, 200,   0),    # McQueen yellow/gold
+        "win":         (140, 190, 220),    # Windshield blue (his eyes)
         "wheel":       (20,   20,  20),
-        "rim":         (200, 200, 200),
-        "stripe_col":  (255, 120,   0),
-    },
-    # 1: Shelby Mustang GT500 (1967) — Black & gold
-    {
-        "name":        "Shelby GT500",
-        "year":        "1967",
-        "class":       "Pony Car",
-        "body":        (20,  20,  20),
-        "body_hi":     (60,  60,  60),
-        "body_lo":     (5,    5,   5),
-        "roof":        (10,  10,  10),
-        "trim":        (200, 160,   0),    # gold
-        "win":         (80,  120, 160),
-        "wheel":       (15,  15,  15),
-        "rim":         (220, 180,  20),
-        "stripe_col":  (200, 160,   0),
-    },
-    # 2: Dodge Charger R/T (1969) — General Lee orange
-    {
-        "name":        "Dodge Charger R/T",
-        "year":        "1969",
-        "class":       "Muscle",
-        "body":        (220,  70,   0),
-        "body_hi":     (255, 120,  20),
-        "body_lo":     (140,  40,   0),
-        "roof":        (180,  50,   0),
-        "trim":        (240, 240, 240),
-        "win":         (90,  140, 180),
-        "wheel":       (20,  20,  20),
         "rim":         (220, 220, 220),
-        "stripe_col":  (240, 240, 240),
+        "stripe_col":  (255, 220,   0),    # Lightning bolt yellow
+        "number":      "95",
+        "sponsor":     "Rust-eze",
     },
-    # 3: Ferrari 250 GTO (1962) — Rosso Corsa red
+    # 1: Chick Hicks — Dark green with mustache stripe, dirty player
     {
-        "name":        "Ferrari 250 GTO",
-        "year":        "1962",
-        "class":       "GT",
-        "body":        (200,  10,   10),
-        "body_hi":     (255,  60,   40),
-        "body_lo":     (120,   5,    5),
-        "roof":        (160,   8,    8),
-        "trim":        (220, 220, 220),
-        "win":         (100, 160, 200),
-        "wheel":       (20,  20,  20),
-        "rim":         (200, 200, 200),
-        "stripe_col":  (255, 220, 220),
+        "name":        "Chick Hicks",
+        "year":        "2006",
+        "class":       "Stock Car",
+        "body":        (40,   80,  40),    # Murky dark green
+        "body_hi":     (70,  120,  70),
+        "body_lo":     (20,   50,  20),
+        "roof":        (30,   65,  30),
+        "trim":        (220, 200,   0),    # Yellow trim (Dinoco rival)
+        "win":         (90,  140, 170),
+        "wheel":       (20,   20,  20),
+        "rim":         (160, 160, 160),
+        "stripe_col":  (220, 200,   0),
+        "number":      "86",
+        "sponsor":     "Hostile Takeover",
     },
-    # 4: Pontiac GTO (1969) — 'The Judge' orange/black
+    # 2: Strip Weathers "The King" — Dinoco blue legend
     {
-        "name":        "Pontiac GTO",
-        "year":        "1969",
-        "class":       "Muscle",
-        "body":        (230, 110,   0),
-        "body_hi":     (255, 160,  20),
-        "body_lo":     (160,  70,   0),
-        "roof":        (20,   20,  20),
-        "trim":        (20,   20,  20),
-        "win":         (80,  130, 160),
-        "wheel":       (20,  20,  20),
-        "rim":         (180, 180, 180),
-        "stripe_col":  (255, 255, 100),
+        "name":        "The King (#43)",
+        "year":        "2006",
+        "class":       "Stock Car",
+        "body":        (30,   90, 180),    # Dinoco royal blue
+        "body_hi":     (80,  150, 230),
+        "body_lo":     (15,   55, 110),
+        "roof":        (25,   75, 155),
+        "trim":        (255, 255, 255),    # White (STP / Dinoco white)
+        "win":         (140, 200, 240),
+        "wheel":       (20,   20,  20),
+        "rim":         (240, 240, 240),
+        "stripe_col":  (255, 255, 255),
+        "number":      "43",
+        "sponsor":     "Dinoco",
     },
-    # 5: Chevrolet Camaro Z28 (1969) — Hugger orange with black stripes
+    # 3: Doc Hudson "Fabulous Hudson Hornet" — Classic navy blue
     {
-        "name":        "Chevy Camaro Z28",
-        "year":        "1969",
-        "class":       "Pony Car",
-        "body":        (200,  80,   0),
-        "body_hi":     (240, 130,  20),
-        "body_lo":     (120,  40,   0),
-        "roof":        (10,   10,  10),
-        "trim":        (10,   10,  10),
-        "win":         (80,  130, 165),
-        "wheel":       (20,  20,  20),
-        "rim":         (200, 200, 200),
-        "stripe_col":  (20,   20,  20),
+        "name":        "Doc Hudson",
+        "year":        "1951",
+        "class":       "Hudson Hornet",
+        "body":        (30,   40,  80),    # Dark navy blue
+        "body_hi":     (60,   75, 130),
+        "body_lo":     (15,   22,  50),
+        "roof":        (22,   32,  65),
+        "trim":        (200, 160,  40),    # Gold racing stripes (hidden)
+        "win":         (110, 160, 210),
+        "wheel":       (20,   20,  20),
+        "rim":         (160, 160, 180),
+        "stripe_col":  (200, 160,  40),
+        "number":      "51",
+        "sponsor":     "Hudson Hornet",
     },
-    # 6: AC Cobra 427 (1965) — British racing green
+    # 4: Sally Carrera — Metallic light blue Porsche
     {
-        "name":        "AC Cobra 427",
-        "year":        "1965",
-        "class":       "Roadster",
-        "body":        (20,   80,  20),
-        "body_hi":     (50,  130,  50),
-        "body_lo":     (5,    40,   5),
-        "roof":        (10,   10,  10),
-        "trim":        (220, 220, 220),
-        "win":         (80,  160, 200),
-        "wheel":       (20,  20,  20),
-        "rim":         (220, 220, 220),
-        "stripe_col":  (220, 220, 220),
+        "name":        "Sally Carrera",
+        "year":        "2002",
+        "class":       "Porsche 911",
+        "body":        (100, 160, 210),    # Metallic light blue
+        "body_hi":     (160, 210, 250),
+        "body_lo":     (60,  100, 150),
+        "roof":        (80,  130, 180),
+        "trim":        (220, 220, 230),    # Silver chrome trim
+        "win":         (160, 210, 240),
+        "wheel":       (20,   20,  20),
+        "rim":         (220, 220, 230),
+        "stripe_col":  (255, 180, 200),    # Pink tattoo pinstripe
+        "number":      "",
+        "sponsor":     "Cozy Cone Motel",
     },
-    # 7: Jaguar E-Type (1961) — British Racing Silver
+    # 5: Ramone — 1959 Impala lowrider, vibrant purple (his ever-changing color)
     {
-        "name":        "Jaguar E-Type",
-        "year":        "1961",
-        "class":       "GT",
-        "body":        (180, 180, 185),
-        "body_hi":     (230, 230, 235),
-        "body_lo":     (100, 100, 110),
-        "roof":        (140, 140, 145),
-        "trim":        (20,   20,  20),
-        "win":         (100, 160, 210),
-        "wheel":       (20,  20,  20),
-        "rim":         (200, 200, 200),
-        "stripe_col":  (220, 180,  20),
+        "name":        "Ramone",
+        "year":        "1959",
+        "class":       "Impala Lowrider",
+        "body":        (130,  40, 200),    # Ramone deep purple
+        "body_hi":     (190,  90, 255),
+        "body_lo":     (80,   20, 130),
+        "roof":        (100,  30, 160),
+        "trim":        (0,   220, 255),    # Neon turquoise pinstriping
+        "win":         (100, 170, 220),
+        "wheel":       (20,   20,  20),
+        "rim":         (220, 180, 255),    # Purple-tinted chrome
+        "stripe_col":  (0,   220, 255),
+        "number":      "",
+        "sponsor":     "Ramone's House of Body Art",
+    },
+    # 6: Jackson Storm — Sleek next-gen dark carbon racer (Cars 3)
+    {
+        "name":        "Jackson Storm",
+        "year":        "2017",
+        "class":       "Next-Gen Racer",
+        "body":        (20,   22,  32),    # Midnight black carbon
+        "body_hi":     (50,   55,  80),
+        "body_lo":     (8,     8,  14),
+        "roof":        (14,   16,  24),
+        "trim":        (0,   180, 255),    # Ice blue neon trim
+        "win":         (50,  130, 200),
+        "wheel":       (10,   10,  12),
+        "rim":         (100, 160, 220),    # Blue chrome
+        "stripe_col":  (0,   160, 255),
+        "number":      "20",
+        "sponsor":     "Dinoco (Villain)",
+    },
+    # 7: Mater — Rusted brown 1955 tow truck
+    {
+        "name":        "Tow Mater",
+        "year":        "1955",
+        "class":       "Chevy Tow Truck",
+        "body":        (130,  80,  40),    # Rusty brown
+        "body_hi":     (175, 120,  65),
+        "body_lo":     (80,   48,  22),
+        "roof":        (100,  62,  30),
+        "trim":        (90,   65,  35),    # Faded rust trim
+        "win":         (100, 150, 180),    # Mismatched windshield
+        "wheel":       (30,   25,  20),    # Worn wheels
+        "rim":         (100,  80,  60),    # Rusty hubcap
+        "stripe_col":  (160, 110,  60),
+        "number":      "",
+        "sponsor":     "Radiator Springs",
     },
 ]
 
@@ -158,7 +170,7 @@ def draw_car_at(surface: pygame.Surface,
                 nitro_active: bool = False,
                 is_human: bool = False,
                 show_shadow: bool = True) -> None:
-    """Draw a classic muscle car with pseudo-3D shading."""
+    """Draw a Cars-movie character car with pseudo-3D shading."""
     ci  = max(0, min(len(CAR_DESIGNS)-1, car_index))
     des = CAR_DESIGNS[ci]
 
@@ -168,20 +180,20 @@ def draw_car_at(surface: pygame.Surface,
     def r(px, py):
         return _rot(cx, cy, cx + px, cy + py, angle)
 
-    # ── Shadow (soft ellipse) ────────────────────────────────────────────────
+    # ── Shadow (soft ellipse under car) ──────────────────────────────────────
     if show_shadow:
         shadow = pygame.Surface((W*4+10, HL*2+10), pygame.SRCALPHA)
-        pygame.draw.ellipse(shadow, (0, 0, 0, 55), shadow.get_rect())
+        pygame.draw.ellipse(shadow, (0, 0, 0, 60), shadow.get_rect())
         surface.blit(shadow, (int(cx) - W*2 - 5 + int(4*scale),
                               int(cy) - HL - 5 + int(5*scale)))
 
-    # ── Nitro exhaust ────────────────────────────────────────────────────────
+    # ── Nitro exhaust (Flo's neon turquoise) ─────────────────────────────────
     if nitro_active:
         for t in range(4):
             rsz = int(W * (2.2 - t * 0.5))
             alpha = max(0, 200 - t * 50)
             exh = pygame.Surface((rsz*2, rsz*2), pygame.SRCALPHA)
-            pygame.draw.circle(exh, (0, 160+t*20, 255, alpha), (rsz, rsz), rsz)
+            pygame.draw.circle(exh, (0, 220+t*8, 200, alpha), (rsz, rsz), rsz)
             bx = int(cx - math.cos(angle) * (HL + t * int(W*0.7))) - rsz
             by = int(cy - math.sin(angle) * (HL + t * int(W*0.7))) - rsz
             surface.blit(exh, (bx, by))
@@ -197,14 +209,11 @@ def draw_car_at(surface: pygame.Surface,
     for wx, wy in wheels:
         pts = [r(wx-WW, wy-WL), r(wx+WW, wy-WL), r(wx+WW, wy+WL), r(wx-WW, wy+WL)]
         pygame.draw.polygon(surface, des["wheel"], pts)
-        # Tire sidewall highlight
         pygame.draw.polygon(surface, (40, 40, 40), pts, 1)
-        # Rim
         wc = r(wx, wy)
         rim_r = max(2, int(3.5*scale))
         pygame.draw.circle(surface, des["rim"], wc, rim_r)
         pygame.draw.circle(surface, _shade_color(des["rim"], 0.6), wc, rim_r, 1)
-        # Spoke detail
         spoke_col = _shade_color(des["rim"], 0.8)
         for sk in range(5):
             ang_sp = angle + sk * math.pi * 2 / 5
@@ -212,7 +221,7 @@ def draw_car_at(surface: pygame.Surface,
             spy = wc[1] + int(math.sin(ang_sp) * rim_r * 0.75)
             pygame.draw.line(surface, spoke_col, wc, (spx, spy), 1)
 
-    # ── Fender flares (wide body) ────────────────────────────────────────────
+    # ── Fender flares ────────────────────────────────────────────────────────
     fender_col = _shade_color(des["body_lo"], 0.8)
     fenders = [
         [r(-W-int(2*scale), -int(HL*0.72)), r(-W-int(2*scale), -int(HL*0.48)),
@@ -227,7 +236,7 @@ def draw_car_at(surface: pygame.Surface,
     for fender in fenders:
         pygame.draw.polygon(surface, fender_col, fender)
 
-    # ── Car body — base color ────────────────────────────────────────────────
+    # ── Car body ─────────────────────────────────────────────────────────────
     body_pts = [
         r(-W,          -int(HL*0.28)),
         r( W,          -int(HL*0.28)),
@@ -238,14 +247,10 @@ def draw_car_at(surface: pygame.Surface,
     ]
     pygame.draw.polygon(surface, des["body"], body_pts)
 
-    # ── Body side shading (gradient simulation via layered horizontal strips) ─
-    # Left darker shade
+    # Side shading
     left_shade = [r(-W, -int(HL*0.28)), r(-int(W*0.7), -int(HL*0.28)),
                   r(-int(W*0.7), int(HL*0.52)), r(-W, int(HL*0.52))]
-    shade_surf = pygame.Surface((int(W*0.3*2)+10, HL*2+10), pygame.SRCALPHA)
     pygame.draw.polygon(surface, (*des["body_lo"], 180), left_shade)
-
-    # Right darker shade
     right_shade = [r(W, -int(HL*0.28)), r(int(W*0.7), -int(HL*0.28)),
                    r(int(W*0.7), int(HL*0.52)), r(W, int(HL*0.52))]
     pygame.draw.polygon(surface, (*des["body_lo"], 180), right_shade)
@@ -254,26 +259,27 @@ def draw_car_at(surface: pygame.Surface,
     hi_w = max(2, int(W*0.3))
     hi_pts = [r(-hi_w, -int(HL*0.2)), r(hi_w, -int(HL*0.2)),
               r(hi_w,   int(HL*0.4)), r(-hi_w, int(HL*0.4))]
-    hi_surf = pygame.Surface((hi_w*2+10, HL+10), pygame.SRCALPHA)
     pygame.draw.polygon(surface, (*des["body_hi"], 100), hi_pts)
 
-    # ── Rear spoiler / trunk ─────────────────────────────────────────────────
+    # ── Racing stripe (the Cars-movie lightning bolt style) ───────────────────
+    stripe_w = max(1, int(4*scale))
+    # For McQueen, draw a wider central stripe
+    if ci == 0:
+        # McQueen lightning bolt: wider yellow centre stripe
+        stripe_w = max(2, int(6*scale))
+    stripe_pts = [r(-stripe_w, -int(HL*0.26)), r(stripe_w, -int(HL*0.26)),
+                  r(stripe_w,   int(HL*0.9)),  r(-stripe_w, int(HL*0.9))]
+    pygame.draw.polygon(surface, (*des["stripe_col"], 170), stripe_pts)
+
+    # ── Rear section / spoiler ────────────────────────────────────────────────
     spoiler_pts = [r(-W+int(1*scale), -int(HL*0.28)),
                    r( W-int(1*scale), -int(HL*0.28)),
                    r( W-int(1*scale), -int(HL*0.48)),
                    r(-W+int(1*scale), -int(HL*0.48))]
     pygame.draw.polygon(surface, des["trim"], spoiler_pts)
-    # Spoiler wing lip
     pygame.draw.line(surface, _shade_color(des["trim"], 1.3),
                      r(-W+int(1*scale), -int(HL*0.48)),
                      r( W-int(1*scale), -int(HL*0.48)), max(1, int(2*scale)))
-
-    # ── Racing stripe ────────────────────────────────────────────────────────
-    stripe_w = max(1, int(4*scale))
-    stripe_pts = [r(-stripe_w, -int(HL*0.26)), r(stripe_w, -int(HL*0.26)),
-                  r(stripe_w,   int(HL*0.9)),  r(-stripe_w, int(HL*0.9))]
-    stripe_surf = pygame.Surface((stripe_w*4, HL*3), pygame.SRCALPHA)
-    pygame.draw.polygon(surface, (*des["stripe_col"], 160), stripe_pts)
 
     # ── Cabin / Roofline ─────────────────────────────────────────────────────
     CW, CH = int(W*0.75), int(HL*0.52)
@@ -291,7 +297,7 @@ def draw_car_at(surface: pygame.Surface,
                r(rhi_w, int(CH*0.4)), r(-rhi_w, int(CH*0.4))]
     pygame.draw.polygon(surface, (*_shade_color(des["roof"], 2.0), 70), rhi_pts)
 
-    # ── Front windshield ─────────────────────────────────────────────────────
+    # ── Front windshield — Cars-movie style: expressive "eyes" ───────────────
     WI_W = int(CW * 0.88)
     wind_pts = [
         r(-WI_W,           int(CH*0.65)),
@@ -300,38 +306,55 @@ def draw_car_at(surface: pygame.Surface,
         r(-int(WI_W*0.78), int(CH*0.95)),
     ]
     pygame.draw.polygon(surface, des["win"], wind_pts)
+
+    # Cars-movie "eyes" on the windshield (white sclera + dark pupil)
+    if scale >= 1.5:
+        eye_y_base = int(CH * 0.78)
+        for ex_off in [-int(WI_W*0.38), int(WI_W*0.38)]:
+            ep = r(ex_off, eye_y_base)
+            er = max(2, int(5 * scale * 0.5))
+            # Sclera (white)
+            pygame.draw.circle(surface, (240, 240, 245), ep, er)
+            # Iris (dark)
+            pygame.draw.circle(surface, (30, 30, 40), ep, max(1, int(er*0.55)))
+            # Pupil glint
+            pg_pos = (ep[0] + max(1, int(er*0.2)), ep[1] - max(1, int(er*0.2)))
+            pygame.draw.circle(surface, (255, 255, 255), pg_pos, max(1, int(er*0.2)))
+
     # Windshield glare
     glare_pts = [r(-int(WI_W*0.5), int(CH*0.68)),
                  r(-int(WI_W*0.1), int(CH*0.68)),
                  r(-int(WI_W*0.15), int(CH*0.82)),
                  r(-int(WI_W*0.55), int(CH*0.82))]
-    pygame.draw.polygon(surface, (220, 240, 255, 120), glare_pts)
+    pygame.draw.polygon(surface, (220, 240, 255, 100), glare_pts)
 
     # ── Rear window ──────────────────────────────────────────────────────────
     rw_pts = [r(-int(CW*0.72), int(CH*0.08)), r( int(CW*0.72), int(CH*0.08)),
               r( int(CW*0.76), int(CH*0.32)), r(-int(CW*0.76), int(CH*0.32))]
     pygame.draw.polygon(surface, des["win"], rw_pts)
 
-    # ── Headlights (round) ───────────────────────────────────────────────────
+    # ── Headlights ───────────────────────────────────────────────────────────
     for hx in [-int(W*0.52), int(W*0.52)]:
         hp = r(hx, int(HL*0.9))
-        pygame.draw.circle(surface, (255, 250, 210), hp, max(2, int(4*scale)))
+        pygame.draw.circle(surface, (255, 250, 200), hp, max(2, int(4*scale)))
         pygame.draw.circle(surface, (255, 255, 255), hp, max(1, int(2*scale)))
         pygame.draw.circle(surface, (200, 200, 200), hp, max(2, int(4*scale)), 1)
 
-    # ── Tail lights ───────────────────────────────────────────────────────────
+    # ── Tail lights (McQueen-style round) ────────────────────────────────────
     for tx in [-int(W*0.6), int(W*0.6)]:
         tp = r(tx, -int(HL*0.4))
-        pygame.draw.circle(surface, (220, 20, 20), tp, max(2, int(3*scale)))
-        pygame.draw.circle(surface, (255, 80, 80), tp, max(1, int(1.5*scale)))
+        pygame.draw.circle(surface, (200, 20, 10), tp, max(2, int(3*scale)))
+        pygame.draw.circle(surface, (255, 80, 60), tp, max(1, int(1.5*scale)))
 
     # ── Body outline ─────────────────────────────────────────────────────────
     pygame.draw.polygon(surface, _shade_color(des["body_lo"], 0.6), body_pts, max(1, int(scale)))
 
-    # ── Player ring ──────────────────────────────────────────────────────────
+    # ── Player ring (Piston Cup style) ───────────────────────────────────────
     if is_human:
-        pygame.draw.circle(surface, (0, 230, 255), (int(cx), int(cy)),
+        pygame.draw.circle(surface, (255, 190, 0), (int(cx), int(cy)),
                            int(HL + 5*scale), 2)
+        pygame.draw.circle(surface, (255, 220, 80), (int(cx), int(cy)),
+                           int(HL + 7*scale), 1)
 
 
 def draw_garage_car(surface: pygame.Surface,

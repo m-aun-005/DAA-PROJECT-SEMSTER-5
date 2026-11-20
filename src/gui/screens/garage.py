@@ -83,7 +83,7 @@ class GarageScreen:
         # Header
         hdr = get_font(size=36, bold=True).render("GARAGE", True, TEXT_WHITE)
         surface.blit(hdr, hdr.get_rect(center=(W//2, 46)))
-        sub = get_ui_font(size=13).render("Select your legendary machine", True, TEXT_MUTED)
+        sub = get_ui_font(size=13).render("Select your Cars character", True, TEXT_MUTED)
         surface.blit(sub, sub.get_rect(center=(W//2, 70)))
         pygame.draw.line(surface, accent, (W//2-200, 82), (W//2+200, 82), 2)
 
