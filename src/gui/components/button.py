@@ -100,3 +100,68 @@ class Button:
         t_rect.x = r.x + 16  # left-aligned with padding
         t_rect.centery = r.centery
         surface.blit(txt_surf, t_rect)
+
+
+def draw_arrow_button(
+    surface: pygame.Surface,
+    rect,
+    direction: str = "left",
+    color: tuple = (0, 180, 255),
+    hovered: bool = False,
+    active: bool = False,
+) -> None:
+    """Draw a proper filled-triangle arrow button (no Unicode chars needed).
+    direction: 'left' or 'right'.
+    """
+    r = pygame.Rect(rect)
+    # Background
+    bg = (28, 38, 62) if (hovered or active) else (18, 22, 36)
+    pygame.draw.rect(surface, bg, r, border_radius=8)
+    # Border
+    bc = color if (hovered or active) else (38, 46, 68)
+    pygame.draw.rect(surface, bc, r, width=2, border_radius=8)
+    # Triangle
+    cx, cy = r.centerx, r.centery
+    hw = max(5, r.width // 4)
+    hh = max(5, r.height // 3)
+    if direction == "left":
+        pts = [(cx + hw, cy - hh), (cx + hw, cy + hh), (cx - hw, cy)]
+    else:
+        pts = [(cx - hw, cy - hh), (cx - hw, cy + hh), (cx + hw, cy)]
+    tri_col = color if (hovered or active) else (100, 120, 160)
+    pygame.draw.polygon(surface, tri_col, pts)
+
+
+class ArrowButton:
+    """A clickable left/right arrow button drawn as a filled triangle polygon."""
+
+    def __init__(
+        self,
+        rect,
+        direction: str = "left",
+        callback=None,
+        color: tuple = (0, 180, 255),
+    ):
+        self.rect      = pygame.Rect(rect)
+        self.direction = direction
+        self.callback  = callback
+        self.color     = color
+        self.is_hovered = False
+        self.is_active  = False
+
+    def handle_event(self, event: pygame.event.Event) -> bool:
+        if event.type == pygame.MOUSEMOTION:
+            self.is_hovered = self.rect.collidepoint(event.pos)
+        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            if self.rect.collidepoint(event.pos):
+                if self.callback:
+                    self.callback()
+                return True
+        return False
+
+    def update(self, dt: float) -> None:
+        pass  # no animation needed for simple arrows
+
+    def draw(self, surface: pygame.Surface) -> None:
+        draw_arrow_button(surface, self.rect, self.direction, self.color,
+                          hovered=self.is_hovered, active=self.is_active)

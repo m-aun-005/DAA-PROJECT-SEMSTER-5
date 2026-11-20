@@ -118,9 +118,12 @@ class RacingScreen:
         self.hud.update(dt)
 
         if self.engine.is_finished:
+            from src.gui.components.car_renderer import CAR_DESIGNS
+            _car_name = CAR_DESIGNS[self.car_idx % len(CAR_DESIGNS)]["name"]
             self.switch_screen("dashboard", {
                 "results":      self.engine.results,
                 "circuit_name": self.circuit.name,
+                "car_name":     _car_name,
             })
 
     def draw(self, surface: pygame.Surface) -> None:

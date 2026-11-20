@@ -69,6 +69,9 @@ class HUD:
         # 7. Checkpoint target
         self._draw_checkpoint_hint(W, H, player_veh)
 
+        # 8. Minimap — bottom-right corner shows full graph + player position
+        self._draw_minimap(W, H, circuit, player_veh)
+
     # ── Individual elements ───────────────────────────────────────────────────
 
     def _draw_speedometer(self, W: int, H: int, veh: Vehicle) -> None:
@@ -224,15 +227,16 @@ class HUD:
         slide_y = H//2 - 90 - int((1.0 - self._alert_slide) * 60)
         alpha   = int(255 * min(1.0, self._alert_slide))
 
-        banner = pygame.Surface((540, 46), pygame.SRCALPHA)
-        pygame.draw.rect(banner, (160, 20, 20, int(alpha*0.9)), banner.get_rect(), border_radius=10)
-        pygame.draw.rect(banner, (255, 80, 80, alpha), banner.get_rect(), width=1, border_radius=10)
+        banner = pygame.Surface((580, 48), pygame.SRCALPHA)
+        # Amber/gold — race event notification, NOT an error/crash dialog
+        pygame.draw.rect(banner, (120, 72, 0, int(alpha * 0.92)), banner.get_rect(), border_radius=10)
+        pygame.draw.rect(banner, (255, 185, 40, alpha), banner.get_rect(), width=1, border_radius=10)
 
-        txt = get_font(size=16, bold=True).render(f"⚡  {self._alert_txt}", True, (255,255,255))
-        t_r = txt.get_rect(center=(270, 23))
+        txt = get_font(size=15, bold=True).render(f"EVENT:  {self._alert_txt}", True, (255, 238, 170))
+        t_r = txt.get_rect(center=(290, 24))
         banner.blit(txt, t_r)
 
-        self.surface.blit(banner, (W//2 - 270, slide_y), special_flags=pygame.BLEND_ALPHA_SDL2)
+        self.surface.blit(banner, (W//2 - 290, slide_y), special_flags=pygame.BLEND_ALPHA_SDL2)
 
     def _draw_checkpoint_hint(self, W: int, H: int, veh: Vehicle) -> None:
         if not hasattr(veh, "nextCheckpoint"):
@@ -241,6 +245,80 @@ class HUD:
         txt = f"→ CP {cp}" if cp <= 10 else "→ FINISH LINE"
         lbl = get_ui_font(size=13, bold=True).render(txt, True, TEXT_GOLD)
         self.surface.blit(lbl, lbl.get_rect(center=(W//2, H - 110)))
+
+
+    def _draw_minimap(self, W: int, H: int, circuit: "Circuit", player_veh: "Vehicle") -> None:
+        """Draw a 140x140 minimap at bottom-right showing the full graph and player position."""
+        MAP_W, MAP_H = 148, 148
+        mx, my = W - MAP_W - 14, H - MAP_H - 52  # bottom-right, above control bar
+
+        # Background panel
+        panel = pygame.Surface((MAP_W, MAP_H), pygame.SRCALPHA)
+        pygame.draw.rect(panel, (6, 8, 18, 210), panel.get_rect(), border_radius=8)
+        pygame.draw.rect(panel, (38, 46, 68, 180), panel.get_rect(), width=1, border_radius=8)
+        self.surface.blit(panel, (mx, my))
+
+        # Compute scale to fit all vertices
+        verts = list(circuit.graph.vertices.values())
+        if not verts:
+            return
+        xs = [v.x for v in verts]; ys = [v.y for v in verts]
+        min_x, max_x = min(xs), max(xs)
+        min_y, max_y = min(ys), max(ys)
+        span_x = max(1, max_x - min_x)
+        span_y = max(1, max_y - min_y)
+        pad = 12
+        scale_x = (MAP_W - pad*2) / span_x
+        scale_y = (MAP_H - pad*2) / span_y
+        sc = min(scale_x, scale_y)
+
+        def to_map(vx, vy):
+            return (
+                int(mx + pad + (vx - min_x) * sc),
+                int(my + pad + (vy - min_y) * sc),
+            )
+
+        # Draw edges as thin lines
+        for e in circuit.graph.edges.values():
+            u = circuit.graph.get_vertex(e.from_vertex)
+            v = circuit.graph.get_vertex(e.to_vertex)
+            if u and v:
+                p1 = to_map(u.x, u.y)
+                p2 = to_map(v.x, v.y)
+                pygame.draw.line(self.surface, (60, 72, 100), p1, p2, 1)
+
+        # Draw checkpoint nodes as tiny gold dots
+        for v in verts:
+            from src.models.vertex import VertexType
+            px, py = to_map(v.x, v.y)
+            if v.type in (VertexType.START, VertexType.FINISH):
+                pygame.draw.circle(self.surface, (80, 255, 140), (px, py), 3)
+            elif v.type == VertexType.CHECKPOINT:
+                pygame.draw.circle(self.surface, (255, 200, 50), (px, py), 2)
+            else:
+                pygame.draw.circle(self.surface, (50, 60, 90), (px, py), 1)
+
+        # Draw player position as bright cyan dot
+        u = circuit.graph.get_vertex(player_veh.currentVertex)
+        if u:
+            if player_veh.targetVertex is not None:
+                tv = circuit.graph.get_vertex(player_veh.targetVertex)
+                if tv:
+                    prog = max(0.0, min(1.0, getattr(player_veh, "progress", 0.0)))
+                    px_f = u.x + (tv.x - u.x) * prog
+                    py_f = u.y + (tv.y - u.y) * prog
+                    px, py = to_map(px_f, py_f)
+                else:
+                    px, py = to_map(u.x, u.y)
+            else:
+                px, py = to_map(u.x, u.y)
+            # Pulsing ring
+            pygame.draw.circle(self.surface, (0, 200, 255), (px, py), 5)
+            pygame.draw.circle(self.surface, (255, 255, 255), (px, py), 3)
+
+        # Label
+        lbl = get_ui_font(size=9, bold=True).render("MAP", True, (100, 120, 160))
+        self.surface.blit(lbl, (mx + 4, my + 2))
 
 
 def surface_blit_center(surface: pygame.Surface, txt: pygame.Surface, cx: int, cy: int) -> None:

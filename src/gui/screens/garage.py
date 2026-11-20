@@ -9,7 +9,7 @@ import pygame
 from src.gui.components.car_renderer import draw_garage_car, CAR_DESIGNS
 from src.gui.assets.colors import BG_DARK, PANEL_BG, PANEL_BORDER, TEXT_WHITE, TEXT_ACCENT, TEXT_GOLD, TEXT_MUTED
 from src.gui.assets.fonts import get_font, get_ui_font
-from src.gui.components.button import Button
+from src.gui.components.button import Button, ArrowButton
 
 CAR_STATS = [
     {"speed":85,"accel":78,"handling":80,"nitro":72,"weight":"1050 kg","engine":"4.7L V8","power":"485 hp","drive":"RWD"},
@@ -34,8 +34,8 @@ class GarageScreen:
 
         self._btn_back  = Button((20, 20, 110, 36), "← BACK",
                                  callback=lambda: self.switch_screen("main_menu", {}), font_size=14)
-        self._btn_prev  = Button((42, 330, 50, 50), "◀", callback=self._prev, font_size=22, bold=True)
-        self._btn_next  = Button((1188, 330, 50, 50), "▶", callback=self._next, font_size=22, bold=True)
+        self._btn_prev  = ArrowButton((42, 330, 50, 50), direction="left", callback=self._prev)
+        self._btn_next  = ArrowButton((1188, 330, 50, 50), direction="right", callback=self._next)
         self._btn_race  = Button((490, 660, 300, 46), "RACE THIS CAR  ▶",
                                  callback=self._race, font_size=18, bold=True, accent_color=(0,220,80))
 

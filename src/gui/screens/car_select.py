@@ -7,7 +7,7 @@ Works with 8 legendary classic cars.
 from typing import Callable, Dict, List
 import math
 import pygame
-from src.gui.components.button import Button
+from src.gui.components.button import Button, ArrowButton
 from src.gui.components.car_renderer import draw_garage_car, draw_car_at, CAR_DESIGNS
 from src.gui.assets.colors import BG_DARK, PANEL_BG, PANEL_BORDER, TEXT_WHITE, TEXT_ACCENT, TEXT_GOLD, TEXT_MUTED
 from src.gui.assets.fonts import get_font, get_ui_font
@@ -36,10 +36,8 @@ class CarSelectScreen:
         self.laps          = 2
         self.time          = 0.0
 
-        self._btn_left  = Button((42, 318, 52, 52), "◀", callback=self._prev,
-                                 font_size=22, bold=True)
-        self._btn_right = Button((1186, 318, 52, 52), "▶", callback=self._next,
-                                 font_size=22, bold=True)
+        self._btn_left  = ArrowButton((42, 318, 52, 52), direction="left", callback=self._prev)
+        self._btn_right = ArrowButton((1186, 318, 52, 52), direction="right", callback=self._next)
         self._race_btn  = Button((490, 648, 300, 48), "SELECT & RACE  ▶",
                                  callback=self._go_race, font_size=18, bold=True,
                                  accent_color=(0, 220, 80))
