@@ -140,33 +140,9 @@ class MainMenuScreen:
             self._btn_rects.append(pygame.Rect(btn_x, btn_y0 + i*(btn_h+gap), btn_w, btn_h))
 
     def _check_photo(self, W: int, H: int) -> None:
-        if self._photo_checked:
-            return
+        # Photo background disabled — always use procedural desert sunset
         self._photo_checked = True
-        root_dir = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
-        for name in ["images.jpg", "home_bg.jpg", "background.jpg",
-                     os.path.join(_ASSETS_DIR, "home_bg.jpg"),
-                     os.path.join(_ASSETS_DIR, "images.jpg")]:
-            p = os.path.join(root_dir, name) if not os.path.isabs(name) else name
-            if os.path.exists(p):
-                try:
-                    loaded = pygame.image.load(p).convert()
-                    iw, ih = loaded.get_size()
-                    scale = max(W / iw, H / ih)
-                    nw, nh = int(iw * scale), int(ih * scale)
-                    scaled = pygame.transform.smoothscale(loaded, (nw, nh))
-                    xo = (nw - W) // 2; yo = (nh - H) // 2
-                    self._photo_bg = scaled.subsurface(pygame.Rect(xo, yo, W, H)).copy()
-                    # Warm Cars-movie overlay
-                    dark = pygame.Surface((W, H), pygame.SRCALPHA)
-                    pygame.draw.rect(dark, (15, 8, 2, 165), dark.get_rect())
-                    for x in range(430):
-                        a = int(200 * (1.0 - x / 430))
-                        pygame.draw.line(dark, (10, 5, 1, a), (x, 0), (x, H))
-                    self._photo_bg.blit(dark, (0, 0))
-                    return
-                except Exception:
-                    pass
+        self._photo_bg = None
 
     def handle_event(self, event: pygame.event.Event) -> None:
         if event.type == pygame.MOUSEMOTION:

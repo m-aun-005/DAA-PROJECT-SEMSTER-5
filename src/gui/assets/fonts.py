@@ -4,10 +4,10 @@
 from typing import Dict, Tuple
 import pygame
 
-_FONT_CACHE: Dict[Tuple[str, int, bool], pygame.font.Font] = {}
+_FONT_CACHE: Dict[Tuple[str, int, bool], pygame.font.Font] = {}  # cleared on every import
 
 # Priority font families for in-game UI (cinematic/bold feel)
-_GAME_FAMILIES = ["Impact", "Agency FB", "Bebas Neue", "Arial Black", "Arial", "sans-serif"]
+_GAME_FAMILIES = ["Arial Black", "Franklin Gothic Heavy", "Agency FB", "Arial", "sans-serif"]
 _UI_FAMILIES   = ["Segoe UI", "Arial", "Helvetica", "sans-serif"]
 
 

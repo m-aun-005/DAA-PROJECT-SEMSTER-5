@@ -41,7 +41,7 @@ class Button:
         font_size: int = 16,
         bold: bool = True,
         icon: str = "",
-        accent_color: Tuple[int, int, int] = (0, 180, 255),
+        accent_color: Tuple[int, int, int] = (255, 160, 0),
     ):
         self.rect         = pygame.Rect(rect)
         self.text         = text
@@ -74,8 +74,8 @@ class Button:
     def draw(self, surface: pygame.Surface) -> None:
         r = self.rect
 
-        # Base fill — dark slate
-        pygame.draw.rect(surface, (22, 27, 44), r, border_radius=7)
+        # Base fill — warm adobe brown (Cars palette)
+        pygame.draw.rect(surface, (45, 28, 12), r, border_radius=7)
 
         # Gradient overlay on hover/active
         if self._hover_alpha > 0:
@@ -86,7 +86,7 @@ class Button:
             surface.blit(overlay, r.topleft)
 
         # Left accent bar
-        bar_color = self.accent_color if (self.is_hovered or self.is_active) else (38, 46, 68)
+        bar_color = self.accent_color if (self.is_hovered or self.is_active) else (90, 60, 24)
         pygame.draw.rect(surface, bar_color, pygame.Rect(r.x, r.y + 4, 4, r.height - 8), border_radius=2)
 
         # Border
@@ -106,30 +106,36 @@ def draw_arrow_button(
     surface: pygame.Surface,
     rect,
     direction: str = "left",
-    color: tuple = (0, 180, 255),
+    color: tuple = (255, 180, 40),
     hovered: bool = False,
     active: bool = False,
 ) -> None:
-    """Draw a proper filled-triangle arrow button (no Unicode chars needed).
+    """Draw a clean triangle arrow — NO rectangle background, transparent circle only.
     direction: 'left' or 'right'.
     """
     r = pygame.Rect(rect)
-    # Background
-    bg = (28, 38, 62) if (hovered or active) else (18, 22, 36)
-    pygame.draw.rect(surface, bg, r, border_radius=8)
-    # Border
-    bc = color if (hovered or active) else (38, 46, 68)
-    pygame.draw.rect(surface, bc, r, width=2, border_radius=8)
-    # Triangle
     cx, cy = r.centerx, r.centery
-    hw = max(5, r.width // 4)
-    hh = max(5, r.height // 3)
+    rad = min(r.width, r.height) // 2
+
+    # Subtle semi-transparent circle behind triangle (blends with any bg)
+    circ = pygame.Surface((rad*2+2, rad*2+2), pygame.SRCALPHA)
+    alpha = 160 if (hovered or active) else 80
+    pygame.draw.circle(circ, (0, 0, 0, alpha), (rad+1, rad+1), rad)
+    if hovered or active:
+        pygame.draw.circle(circ, (*color, 60), (rad+1, rad+1), rad)
+    surface.blit(circ, (cx - rad - 1, cy - rad - 1))
+
+    # Filled triangle (the actual arrow)
+    hw = max(4, rad * 6 // 10)
+    hh = max(4, rad * 7 // 10)
     if direction == "left":
         pts = [(cx + hw, cy - hh), (cx + hw, cy + hh), (cx - hw, cy)]
     else:
         pts = [(cx - hw, cy - hh), (cx - hw, cy + hh), (cx + hw, cy)]
-    tri_col = color if (hovered or active) else (100, 120, 160)
+    tri_col = color if (hovered or active) else (200, 160, 60)
     pygame.draw.polygon(surface, tri_col, pts)
+    # Outline
+    pygame.draw.polygon(surface, (0, 0, 0), pts, 1)
 
 
 class ArrowButton:
@@ -140,7 +146,7 @@ class ArrowButton:
         rect,
         direction: str = "left",
         callback=None,
-        color: tuple = (0, 180, 255),
+        color: tuple = (255, 180, 40),
     ):
         self.rect      = pygame.Rect(rect)
         self.direction = direction
